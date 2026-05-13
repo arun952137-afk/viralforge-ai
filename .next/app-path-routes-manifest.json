@@ -1,0 +1,16 @@
+{
+  "/(auth)/forgot-password/page": "/forgot-password",
+  "/(auth)/login/page": "/login",
+  "/(auth)/signup/page": "/signup",
+  "/(dashboard)/billing/page": "/billing",
+  "/(dashboard)/dashboard/page": "/dashboard",
+  "/(dashboard)/history/page": "/history",
+  "/(dashboard)/profile/page": "/profile",
+  "/(dashboard)/projects/page": "/projects",
+  "/(dashboard)/studio/page": "/studio",
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/razorpay/route": "/api/razorpay",
+  "/favicon.ico/route": "/favicon.ico",
+  "/page": "/"
+}
