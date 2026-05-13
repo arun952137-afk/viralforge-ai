@@ -104,7 +104,7 @@
         "transform": "lodash/{{member}}"
       }
     },
-    "outputFileTracingRoot": "/home/claude/creova-ai",
+    "outputFileTracingRoot": "/home/claude/viralforge-deploy",
     "cacheComponents": false,
     "cacheLife": {
       "default": {
@@ -304,11 +304,11 @@
     "bundlePagesRouterDependencies": false,
     "configFileName": "next.config.ts",
     "turbopack": {
-      "root": "/home/claude/creova-ai"
+      "root": "/home/claude/viralforge-deploy"
     },
     "distDirRoot": ".next"
   },
-  "appDir": "/home/claude/creova-ai",
+  "appDir": "/home/claude/viralforge-deploy",
   "relativeAppDir": "",
   "files": [
     ".next/routes-manifest.json",
