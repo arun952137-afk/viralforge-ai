@@ -7,11 +7,11 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
-  const next = requestUrl.searchParams.get('next') ?? '/dashboard'
   const origin = requestUrl.origin
 
+  // No code means implicit flow sent tokens as hash — handle client-side
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=no_code`)
+    return NextResponse.redirect(`${origin}/auth/confirm`)
   }
 
   const cookieStore = await cookies()
@@ -33,31 +33,25 @@ export async function GET(request: NextRequest) {
   const { data, error } = await supabase.auth.exchangeCodeForSession(code)
 
   if (error) {
-    console.error('Auth callback error:', error.message)
+    console.error('[auth/callback] code exchange error:', error.message)
     return NextResponse.redirect(`${origin}/login?error=${encodeURIComponent(error.message)}`)
   }
 
-  if (data.user) {
-    // Ensure the user row exists in public.users (safety net on top of the DB trigger)
-    const { error: upsertError } = await supabase.from('users').upsert({
+  if (data?.user) {
+    // Safety net: ensure public.users row exists
+    await supabase.from('users').upsert({
       id: data.user.id,
       email: data.user.email,
       username:
         data.user.user_metadata?.preferred_username ||
         data.user.user_metadata?.user_name ||
         data.user.user_metadata?.name ||
-        (data.user.email ? data.user.email.split('@')[0] : null) ||
-        'creator',
+        data.user.user_metadata?.full_name ||
+        (data.user.email ? data.user.email.split('@')[0] : 'creator'),
       plan: 'free',
       credits: 10,
     }, { onConflict: 'id', ignoreDuplicates: true })
-
-    if (upsertError) {
-      console.error('User upsert error:', upsertError.message)
-      // Don't block — user is authenticated, just proceed
-    }
   }
 
-  // Redirect to dashboard (or wherever they were going)
-  return NextResponse.redirect(`${origin}${next}`)
+  return NextResponse.redirect(`${origin}/dashboard`)
 }

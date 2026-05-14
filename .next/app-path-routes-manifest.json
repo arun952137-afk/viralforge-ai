@@ -22,6 +22,7 @@
   "/api/copilot/route": "/api/copilot",
   "/api/razorpay/route": "/api/razorpay",
   "/auth/callback/route": "/auth/callback",
+  "/auth/confirm/page": "/auth/confirm",
   "/favicon.ico/route": "/favicon.ico",
   "/page": "/"
 }
