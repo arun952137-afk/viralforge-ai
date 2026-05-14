@@ -33,9 +33,13 @@ export default function LoginPage() {
   async function handleGoogle() {
     setGoogleLoading(true)
     try {
+      const redirectTo = `${window.location.origin}/auth/callback`
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/dashboard` }
+        options: { 
+          redirectTo,
+          queryParams: { access_type: 'offline', prompt: 'consent' }
+        }
       })
       if (error) throw error
     } catch (err: unknown) {
@@ -52,7 +56,6 @@ export default function LoginPage() {
       </div>
 
       <div className="card" style={{ padding: '36px 32px' }}>
-        {/* Google */}
         <button onClick={handleGoogle} disabled={googleLoading}
           className="btn btn-s" style={{ width: '100%', justifyContent: 'center', padding: 13, marginBottom: 20, fontSize: 14 }}>
           {googleLoading

@@ -30,8 +30,8 @@ function SignupForm() {
           id: data.user.id, email, username,
           plan: planParam === 'pro' ? 'pro' : planParam === 'studio' ? 'studio' : 'free',
           credits: planParam === 'studio' ? -1 : planParam === 'pro' ? 500 : 10,
-        })
-        toast.success('Account created! Check your email.')
+        }, { onConflict: 'id', ignoreDuplicates: false })
+        toast.success('Account created! Welcome to CREOVA.')
         router.push('/dashboard')
       }
     } catch (err: unknown) {
@@ -44,9 +44,13 @@ function SignupForm() {
   async function handleGoogle() {
     setGoogleLoading(true)
     try {
+      const redirectTo = `${window.location.origin}/auth/callback`
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
-        options: { redirectTo: `${window.location.origin}/dashboard` }
+        options: { 
+          redirectTo,
+          queryParams: { access_type: 'offline', prompt: 'consent' }
+        }
       })
       if (error) throw error
     } catch (err: unknown) {
