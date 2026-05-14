@@ -4,30 +4,36 @@ import { NextResponse, type NextRequest } from 'next/server'
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname
 
-  // Never intercept auth routes — they handle their own session logic
-  if (path.startsWith('/auth/')) {
+  // NEVER intercept auth routes — they handle their own sessions
+  if (
+    path.startsWith('/auth/') ||
+    path.startsWith('/_next/') ||
+    path.startsWith('/favicon') ||
+    path.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2)$/)
+  ) {
     return NextResponse.next({ request })
   }
 
-  let supabaseResponse = NextResponse.next({ request })
+  let response = NextResponse.next({ request })
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!supabaseUrl || !supabaseKey) return supabaseResponse
-
-  const supabase = createServerClient(supabaseUrl, supabaseKey, {
-    cookies: {
-      getAll() { return request.cookies.getAll() },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-        supabaseResponse = NextResponse.next({ request })
-        cookiesToSet.forEach(({ name, value, options }) =>
-          supabaseResponse.cookies.set(name, value, options)
-        )
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll() },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
+          response = NextResponse.next({ request })
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          )
+        },
       },
-    },
-  })
+    }
+  )
 
+  // Refresh session — critical for PKCE token rotation
   const { data: { user } } = await supabase.auth.getUser()
 
   const PROTECTED = [
@@ -36,28 +42,27 @@ export async function proxy(request: NextRequest) {
     '/faceless', '/scheduler', '/projects', '/history',
     '/billing', '/profile',
   ]
-  const AUTH_PAGES = ['/login', '/signup', '/forgot-password']
+  const AUTH_ONLY = ['/login', '/signup', '/forgot-password']
 
   const isProtected = PROTECTED.some(p => path === p || path.startsWith(p + '/'))
-  const isAuthPage  = AUTH_PAGES.some(p => path.startsWith(p))
+  const isAuthOnly  = AUTH_ONLY.some(p => path.startsWith(p))
 
   if (isProtected && !user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
+    const loginUrl = request.nextUrl.clone()
+    loginUrl.pathname = '/login'
+    loginUrl.searchParams.set('next', path)
+    return NextResponse.redirect(loginUrl)
   }
 
-  if (isAuthPage && user) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+  if (isAuthOnly && user) {
+    const dashUrl = request.nextUrl.clone()
+    dashUrl.pathname = '/dashboard'
+    return NextResponse.redirect(dashUrl)
   }
 
-  return supabaseResponse
+  return response
 }
 
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
 }
