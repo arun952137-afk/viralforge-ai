@@ -1,3 +1,0 @@
-module.exports=[68114,a=>{"use strict";a.s(["GENERATION_TYPES",0,[{id:"script",label:"Script",icon:"📝",credits:2},{id:"caption",label:"Caption",icon:"💬",credits:1},{id:"thumbnail",label:"Thumbnail",icon:"🖼️",credits:3},{id:"hook",label:"Hook",icon:"🪝",credits:1},{id:"hashtag",label:"Hashtags",icon:"🔍",credits:1},{id:"reel_idea",label:"Reel Idea",icon:"🎬",credits:2},{id:"seo",label:"SEO Package",icon:"📈",credits:2}],"PLAN_PRICES",0,{pro:{monthly:2399,yearly:1679},studio:{monthly:5999,yearly:4199}},"formatDate",0,function(a){return new Date(a).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}])}];
-
-//# sourceMappingURL=src_lib_utils_ts_01of.f6._.js.map

@@ -1,55 +1,57 @@
 'use client'
-export const dynamic = 'force-dynamic'
 import { useState } from 'react'
 import Link from 'next/link'
-import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
+import toast from 'react-hot-toast'
 
-export default function ForgotPasswordPage() {
+export const dynamic = 'force-dynamic'
+
+export default function ForgotPage() {
   const [email, setEmail] = useState('')
   const [loading, setLoading] = useState(false)
   const [sent, setSent] = useState(false)
 
   async function handleReset(e: React.FormEvent) {
     e.preventDefault()
-    if (!email) { toast.error('Enter your email'); return }
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`
-    })
-    setLoading(false)
-    if (error) { toast.error(error.message); return }
-    setSent(true)
-    toast.success('Reset link sent!')
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/login` })
+      if (error) throw error
+      setSent(true)
+      toast.success('Reset email sent!')
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Error sending reset email')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
-    <div className="card p-8">
-      <div className="text-center mb-8">
-        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-white font-black text-xl syne mx-auto mb-4">C</div>
-        <h1 className="syne font-bold text-2xl mb-2">Reset Password</h1>
-        <p className="text-slate-400 text-sm">We'll send you a reset link</p>
+    <div style={{ width: '100%', maxWidth: 400 }}>
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <h1 className="syne" style={{ fontSize: 28, fontWeight: 800, color: '#fff', marginBottom: 8 }}>Reset Password</h1>
+        <p style={{ fontSize: 14, color: 'var(--text2)' }}>We'll send a reset link to your email</p>
       </div>
-      {sent ? (
-        <div className="text-center py-6">
-          <div className="text-5xl mb-4">📧</div>
-          <p className="text-slate-300 mb-2">Check your email!</p>
-          <p className="text-slate-500 text-sm">We sent a reset link to <strong className="text-slate-300">{email}</strong></p>
-        </div>
-      ) : (
-        <form onSubmit={handleReset} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-400 uppercase tracking-wider mb-2">Email</label>
-            <input className="input" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} />
+      <div className="card" style={{ padding: '36px 32px' }}>
+        {sent ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>📬</div>
+            <p style={{ color: 'var(--text2)', marginBottom: 20 }}>Check your inbox for the reset link.</p>
+            <Link href="/login" className="btn btn-p" style={{ justifyContent: 'center', width: '100%', padding: 13 }}>Back to Login</Link>
           </div>
-          <button className="btn-primary w-full justify-center py-3" type="submit" disabled={loading}>
-            {loading ? 'Sending...' : 'Send Reset Link'}
-          </button>
-        </form>
-      )}
-      <p className="text-center text-sm text-slate-500 mt-6">
-        <Link href="/login" className="text-violet-400 hover:text-violet-300 transition-colors">← Back to login</Link>
-      </p>
+        ) : (
+          <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 13, color: 'var(--text2)', fontWeight: 500, display: 'block', marginBottom: 6 }}>Email address</label>
+              <input className="inp" type="email" placeholder="you@example.com" value={email} onChange={e => setEmail(e.target.value)} required />
+            </div>
+            <button type="submit" disabled={loading} className="btn btn-p" style={{ width: '100%', justifyContent: 'center', padding: 13 }}>
+              {loading ? 'Sending…' : 'Send Reset Link'}
+            </button>
+            <Link href="/login" style={{ textAlign: 'center', fontSize: 14, color: 'var(--text3)', textDecoration: 'none' }}>← Back to login</Link>
+          </form>
+        )}
+      </div>
     </div>
   )
 }

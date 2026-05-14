@@ -1,154 +1,191 @@
 'use client'
-export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { formatDate } from '@/lib/utils'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
+
+export const dynamic = 'force-dynamic'
+
+const CHART_DATA = [
+  { d: 'Mon', v: 1200, s: 72 }, { d: 'Tue', v: 1900, s: 81 },
+  { d: 'Wed', v: 1600, s: 68 }, { d: 'Thu', v: 2800, s: 89 },
+  { d: 'Fri', v: 3100, s: 91 }, { d: 'Sat', v: 2600, s: 85 },
+  { d: 'Sun', v: 3800, s: 94 },
+]
 
 const TOOLS = [
-  { href: '/studio?type=script',    icon: '📝', label: 'Write Script',  color: '#7c3aed', desc: 'YouTube, Shorts, Podcast' },
-  { href: '/studio?type=hook',      icon: '🪝', label: 'Gen Hooks',     color: '#06b6d4', desc: 'Stop the scroll' },
-  { href: '/studio?type=caption',   icon: '💬', label: 'Auto Captions', color: '#ec4899', desc: '6 animated styles' },
-  { href: '/studio?type=thumbnail', icon: '🖼️', label: 'Thumbnail AI',  color: '#f97316', desc: 'High-CTR designs' },
-  { href: '/studio?type=hashtag',   icon: '🔍', label: 'SEO + Tags',    color: '#10b981', desc: 'Rank higher' },
-  { href: '/studio?type=reel_idea', icon: '🎬', label: 'Reel Ideas',    color: '#8b5cf6', desc: 'Trend-based concepts' },
+  { href: '/studio',       icon: '⚡', name: 'AI Studio',     desc: 'Generate content',    tag: 'tv' },
+  { href: '/viral-engine', icon: '🔥', name: 'Viral Engine',  desc: 'Score your content',  tag: 'to' },
+  { href: '/competitor',   icon: '🎯', name: 'Competitor AI', desc: 'Spy on competitors',  tag: 'tb' },
+  { href: '/trends',       icon: '📡', name: 'Trend Intel',   desc: 'Catch trends early',  tag: 'tg' },
+  { href: '/brand',        icon: '✦',  name: 'Brand Builder', desc: 'Build your identity', tag: 'tv' },
+  { href: '/faceless',     icon: '🎬', name: 'Faceless AI',   desc: 'Auto channels',       tag: 'tp' },
+  { href: '/scheduler',    icon: '📅', name: 'Scheduler',     desc: 'Perfect timing',      tag: 'tc' },
+  { href: '/copilot',      icon: '🤖', name: 'AI Copilot',    desc: 'Your AI assistant',   tag: 'tv' },
+]
+
+const TIPS = [
+  'Post between 6-8pm IST for 2.4× higher engagement on Reels',
+  'Add a curiosity gap in your first 3 seconds to boost retention by 60%',
+  'Finance + AI combination niches growing 340% on YouTube this month',
+  'Faceless channels with cinematic b-roll get 3× more subscribers',
+  'Thumbnails with faces get 37% higher CTR than text-only designs',
 ]
 
 export default function DashboardPage() {
-  const [user, setUser] = useState<{ email?: string; plan?: string; credits?: number; username?: string } | null>(null)
-  const [projects, setProjects] = useState<{ id: string; title: string; type: string; created_at: string }[]>([])
-  const [generations, setGenerations] = useState<{ id: string; generation_type: string; prompt: string; created_at: string }[]>([])
+  const [user, setUser] = useState<{ username?: string; credits: number; plan: string }>({ credits: 0, plan: 'free' })
+  const [tipIdx, setTipIdx] = useState(0)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function load() {
-      const { data: { user: authUser } } = await supabase.auth.getUser()
-      if (!authUser) return
-      const [{ data: profile }, { data: projs }, { data: gens }] = await Promise.all([
-        supabase.from('users').select('*').eq('id', authUser.id).single(),
-        supabase.from('projects').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }).limit(5),
-        supabase.from('generations').select('*').eq('user_id', authUser.id).order('created_at', { ascending: false }).limit(6),
-      ])
-      setUser({ ...profile, email: authUser.email })
-      setProjects(projs ?? [])
-      setGenerations(gens ?? [])
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        const { data: p } = await supabase.from('users').select('plan,credits,username').eq('id', data.user.id).single()
+        setUser({ username: p?.username, credits: p?.credits ?? 0, plan: p?.plan ?? 'free' })
+      }
       setLoading(false)
-    }
-    load()
+    })
   }, [])
 
+  useEffect(() => {
+    const t = setInterval(() => setTipIdx(i => (i + 1) % TIPS.length), 4000)
+    return () => clearInterval(t)
+  }, [])
+
+  const greeting = () => {
+    const h = new Date().getHours()
+    if (h < 12) return 'Good morning'
+    if (h < 17) return 'Good afternoon'
+    return 'Good evening'
+  }
+
   if (loading) return (
-    <div className="space-y-6 animate-fade-in-up">
-      <div className="h-32 skeleton rounded-2xl" />
-      <div className="grid grid-cols-3 gap-4">{[1,2,3].map(i => <div key={i} className="h-24 skeleton rounded-xl" />)}</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {[1,2,3].map(i => <div key={i} className="sk" style={{ height: 120, borderRadius: 16 }} />)}
     </div>
   )
 
-  const name = user?.username || user?.email?.split('@')[0] || 'Creator'
-  const credPct = user?.plan === 'studio' ? 100 : Math.min(100, ((user?.credits ?? 0) / (user?.plan === 'pro' ? 500 : 10)) * 100)
-
   return (
-    <div className="space-y-8 animate-fade-in-up">
-      {/* Hero card */}
-      <div className="card p-6 relative overflow-hidden" style={{ background: 'radial-gradient(ellipse at 20% 0%,rgba(124,58,237,0.18) 0%,transparent 60%),radial-gradient(ellipse at 80% 60%,rgba(37,99,235,0.1) 0%,transparent 50%)' }}>
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-white font-black text-xl syne">{name[0]?.toUpperCase()}</div>
-          <div>
-            <h1 className="syne font-bold text-xl">Good morning, {name}! 👋</h1>
-            <p className="text-slate-400 text-sm mt-1">Ready to create something viral today?</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <div className="live-dot" />
+            <span style={{ fontSize: 12, color: 'var(--text3)', fontWeight: 500 }}>AI Systems Online</span>
           </div>
+          <h1 className="syne" style={{ fontSize: 28, fontWeight: 800, color: '#fff' }}>
+            {greeting()}, {user.username || 'Creator'} 👋
+          </h1>
+          <p style={{ fontSize: 14, color: 'var(--text2)', marginTop: 4 }}>Your creator command center is ready.</p>
         </div>
-        <div className="flex flex-wrap gap-3">
-          {[['🔥', '14-day streak', 'rgba(124,58,237,0.15)', 'rgba(124,58,237,0.3)'], ['⬆️', `${user?.plan ?? 'free'} plan`, 'rgba(16,185,129,0.1)', 'rgba(16,185,129,0.25)'], ['⚡', `${user?.credits === -1 ? '∞' : user?.credits} credits left`, 'rgba(6,182,212,0.1)', 'rgba(6,182,212,0.25)']].map(([ic, tx, bg, border]) => (
-            <div key={tx} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium" style={{ background: bg, border: `1px solid ${border}` }}>
-              <span>{ic}</span><span>{tx}</span>
-            </div>
-          ))}
-        </div>
-        {/* Credit bar */}
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-slate-500 mb-1.5">
-            <span>AI Credits</span>
-            <span>{user?.credits === -1 ? 'Unlimited' : `${user?.credits} remaining`}</span>
-          </div>
-          <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
-            <div className="h-full rounded-full bg-gradient-to-r from-violet-500 to-blue-500 transition-all duration-700" style={{ width: `${credPct}%` }} />
-          </div>
+        <Link href="/studio" className="btn btn-p">⚡ Open AI Studio</Link>
+      </div>
+
+      {/* AI Tip Banner */}
+      <div style={{ padding: '14px 18px', borderRadius: 12, background: 'rgba(124,58,237,.1)', border: '1px solid rgba(124,58,237,.25)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 18 }}>💡</span>
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <span style={{ fontSize: 11, color: 'var(--violet2)', fontWeight: 700, display: 'block', marginBottom: 2 }}>AI INSIGHT</span>
+          <p style={{ fontSize: 13, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TIPS[tipIdx]}</p>
         </div>
       </div>
 
-      {/* Quick Launch */}
+      {/* Stats Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))', gap: 16 }}>
+        {[
+          { label: 'AI Credits Left', value: user.credits === -1 ? '∞' : user.credits, icon: '⚡', color: '#b47fff', sub: user.plan === 'free' ? 'Upgrade for unlimited' : 'Unlimited plan' },
+          { label: 'Content Generated', value: '—', icon: '📝', color: '#93c5fd', sub: 'This month' },
+          { label: 'Viral Score Avg', value: '—', icon: '🔥', color: '#fdba74', sub: 'Across all content' },
+          { label: 'Active Channels', value: '—', icon: '🎬', color: '#6ee7b7', sub: 'Faceless AI channels' },
+        ].map(s => (
+          <div key={s.label} className="card" style={{ padding: '20px 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{s.label}</span>
+              <span style={{ fontSize: 20 }}>{s.icon}</span>
+            </div>
+            <div className="syne" style={{ fontSize: 32, fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 12, color: 'var(--text3)', marginTop: 6 }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Chart + Quick Tools */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20 }}>
+        <div className="card" style={{ padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div>
+              <div className="syne" style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>Performance This Week</div>
+              <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>Views & viral score trend</div>
+            </div>
+            <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'var(--text3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#7C3AED' }} />Views</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><div style={{ width: 8, height: 8, borderRadius: '50%', background: '#06B6D4' }} />Score</div>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <AreaChart data={CHART_DATA}>
+              <defs>
+                <linearGradient id="gv" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#7C3AED" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="gs" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#06B6D4" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="#06B6D4" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="d" axisLine={false} tickLine={false} />
+              <YAxis axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{ background: '#0b1023', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, fontSize: 13 }} />
+              <Area type="monotone" dataKey="v" stroke="#7C3AED" strokeWidth={2} fill="url(#gv)" name="Views" />
+              <Area type="monotone" dataKey="s" stroke="#06B6D4" strokeWidth={2} fill="url(#gs)" name="Score" />
+            </AreaChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="card" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="syne" style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 4 }}>🔥 Trending Now</div>
+          {['AI Voice Cloning Tutorials', 'Faceless Finance Channels', 'Cinematic B-Roll Aesthetics', 'ChatGPT Prompt Secrets', 'Passive Income with AI'].map((t, i) => (
+            <div key={t} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text4)', minWidth: 16, textAlign: 'center' }}>#{i+1}</span>
+              <span style={{ fontSize: 13, color: 'var(--text2)', flex: 1 }}>{t}</span>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: i < 3 ? '#f97316' : '#6ee7b7', boxShadow: `0 0 6px ${i < 3 ? 'rgba(249,115,22,.7)' : 'rgba(110,231,183,.7)'}` }} />
+            </div>
+          ))}
+          <Link href="/trends" className="btn btn-s" style={{ justifyContent: 'center', fontSize: 13, marginTop: 4 }}>View All Trends →</Link>
+        </div>
+      </div>
+
+      {/* Quick Launch Tools */}
       <div>
-        <h2 className="syne font-bold text-lg mb-4">Quick Launch</h2>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="syne" style={{ fontSize: 16, fontWeight: 700, color: '#fff', marginBottom: 16 }}>⚡ Quick Launch</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 14 }}>
           {TOOLS.map(t => (
-            <Link key={t.href} href={t.href} className="card p-4 text-center transition-all duration-200 hover:-translate-y-1 hover:border-violet-500/30 cursor-pointer">
-              <div className="text-2xl mb-2">{t.icon}</div>
-              <div className="text-xs font-semibold text-slate-200">{t.label}</div>
-              <div className="text-xs text-slate-500 mt-0.5">{t.desc}</div>
+            <Link key={t.href} href={t.href} style={{ textDecoration: 'none' }}>
+              <div className="card card-h" style={{ padding: '18px 20px', cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                  <span style={{ fontSize: 22 }}>{t.icon}</span>
+                  <span className={`tag ${t.tag}`} style={{ fontSize: 9 }}>AI</span>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 3 }}>{t.name}</div>
+                <div style={{ fontSize: 12, color: 'var(--text3)' }}>{t.desc}</div>
+              </div>
             </Link>
           ))}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Projects */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="syne font-bold text-base">Recent Projects</h2>
-            <Link href="/projects" className="text-xs text-violet-400 hover:text-violet-300">View all →</Link>
+      {/* Upgrade banner if free */}
+      {user.plan === 'free' && (
+        <div style={{ padding: '20px 24px', borderRadius: 14, background: 'linear-gradient(135deg, rgba(124,58,237,.15), rgba(59,130,246,.15))', border: '1px solid rgba(124,58,237,.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
+          <div>
+            <div className="syne" style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>🚀 Unlock the Full Power of CREOVA</div>
+            <p style={{ fontSize: 13, color: 'var(--text2)' }}>You're on the free plan. Upgrade to Creator Pro for unlimited AI credits, Viral Engine, Brand Builder & more.</p>
           </div>
-          {projects.length === 0 ? (
-            <div className="text-center py-10 text-slate-500">
-              <div className="text-4xl mb-3 opacity-40">📁</div>
-              <p className="text-sm">No projects yet</p>
-              <Link href="/studio" className="btn-primary mt-4 text-xs px-4 py-2">Create First Project</Link>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {projects.map(p => (
-                <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors">
-                  <div className="w-9 h-9 rounded-lg bg-violet-500/15 flex items-center justify-center text-lg flex-shrink-0">🎬</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{p.title}</p>
-                    <p className="text-xs text-slate-500">{p.type} · {formatDate(p.created_at)}</p>
-                  </div>
-                  <span className="tag tag-purple text-xs">{p.type}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <Link href="/billing" className="btn btn-p">Upgrade — 60% OFF →</Link>
         </div>
-
-        {/* Recent Generations */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="syne font-bold text-base">Recent Generations</h2>
-            <Link href="/history" className="text-xs text-violet-400 hover:text-violet-300">View all →</Link>
-          </div>
-          {generations.length === 0 ? (
-            <div className="text-center py-10 text-slate-500">
-              <div className="text-4xl mb-3 opacity-40">✨</div>
-              <p className="text-sm">No generations yet</p>
-              <Link href="/studio" className="btn-primary mt-4 text-xs px-4 py-2">Open AI Studio</Link>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {generations.map(g => (
-                <div key={g.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors">
-                  <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center text-lg flex-shrink-0">
-                    {g.generation_type === 'script' ? '📝' : g.generation_type === 'hook' ? '🪝' : g.generation_type === 'caption' ? '💬' : g.generation_type === 'thumbnail' ? '🖼️' : g.generation_type === 'hashtag' ? '🔍' : '🎬'}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{g.prompt}</p>
-                    <p className="text-xs text-slate-500">{g.generation_type} · {formatDate(g.created_at)}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      )}
     </div>
   )
 }

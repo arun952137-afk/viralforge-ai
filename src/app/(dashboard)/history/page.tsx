@@ -1,68 +1,84 @@
 'use client'
-export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { formatDate } from '@/lib/utils'
 import toast from 'react-hot-toast'
 
-const TYPE_ICONS: Record<string, string> = { script:'📝', caption:'💬', thumbnail:'🖼️', hook:'🪝', hashtag:'🔍', reel_idea:'🎬', seo:'📈', voiceover:'🎙️' }
+export const dynamic = 'force-dynamic'
+
+interface Gen { id: string; type: string; prompt: string; output: string; created_at: string }
+
+const TYPE_ICONS: Record<string, string> = { script: '📝', hook: '🪝', caption: '💬', seo: '🔍', thumbnail: '🖼️', viral: '🔥', brand: '✦', idea: '💡' }
 
 export default function HistoryPage() {
-  const [gens, setGens] = useState<{ id: string; generation_type: string; prompt: string; result: string; credits_used: number; created_at: string }[]>([])
+  const [gens, setGens] = useState<Gen[]>([])
   const [loading, setLoading] = useState(true)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [expanded, setExpanded] = useState<string | null>(null)
+  const [filter, setFilter] = useState('all')
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      const { data: g } = await supabase.from('generations').select('*').eq('user_id', data.user.id).order('created_at', { ascending: false }).limit(50)
-      setGens(g ?? [])
+      if (data.user) {
+        const { data: g } = await supabase.from('generations').select('*').eq('user_id', data.user.id).order('created_at', { ascending: false }).limit(50)
+        setGens(g ?? [])
+      }
       setLoading(false)
     })
   }, [])
 
-  const sel = gens.find(g => g.id === selected)
+  const filtered = filter === 'all' ? gens : gens.filter(g => g.type === filter)
+  const types = ['all', ...Array.from(new Set(gens.map(g => g.type)))]
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <h1 className="syne font-bold text-2xl">Generation History</h1>
-        <p className="text-slate-400 text-sm mt-1">All your AI-generated content</p>
+        <h1 className="syne" style={{ fontSize: 26, fontWeight: 800, color: '#fff' }}>🕐 Generation History</h1>
+        <p style={{ fontSize: 14, color: 'var(--text2)', marginTop: 4 }}>All your AI-generated content in one place.</p>
       </div>
+
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {types.map(t => (
+          <button key={t} onClick={() => setFilter(t)} style={{ padding: '6px 16px', borderRadius: 100, fontSize: 12, cursor: 'pointer', border: `1px solid ${filter === t ? 'rgba(124,58,237,.5)' : 'var(--border)'}`, background: filter === t ? 'rgba(124,58,237,.15)' : 'transparent', color: filter === t ? '#b47fff' : 'var(--text3)', fontWeight: filter === t ? 700 : 400, textTransform: 'capitalize' }}>
+            {t === 'all' ? 'All' : `${TYPE_ICONS[t] ?? '◆'} ${t}`}
+          </button>
+        ))}
+      </div>
+
       {loading ? (
-        <div className="space-y-3">{[1,2,3,4,5].map(i => <div key={i} className="h-16 skeleton rounded-xl" />)}</div>
-      ) : gens.length === 0 ? (
-        <div className="text-center py-20 text-slate-500">
-          <div className="text-5xl mb-4 opacity-40">📜</div>
-          <p>No generations yet. Visit the AI Studio to create content!</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {[1,2,3,4].map(i => <div key={i} className="sk" style={{ height: 72, borderRadius: 12 }} />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="card" style={{ padding: 60, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📭</div>
+          <div className="syne" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text3)' }}>No generations yet</div>
+          <p style={{ fontSize: 14, color: 'var(--text4)', marginTop: 8 }}>Go to AI Studio and start creating content!</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-2">
-            {gens.map(g => (
-              <div key={g.id} onClick={() => setSelected(g.id === selected ? null : g.id)}
-                className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all ${g.id === selected ? 'border-violet-500/40 bg-violet-500/5' : 'hover:bg-white/5'}`} style={{ border: '1px solid var(--border)' }}>
-                <div className="w-9 h-9 rounded-lg bg-blue-500/15 flex items-center justify-center text-lg flex-shrink-0">{TYPE_ICONS[g.generation_type] ?? '✨'}</div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{g.prompt}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">{g.generation_type} · {formatDate(g.created_at)} · {g.credits_used} credit{g.credits_used !== 1 ? 's' : ''}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {filtered.map(g => (
+            <div key={g.id} className="card" style={{ padding: '16px 20px', cursor: 'pointer' }} onClick={() => setExpanded(expanded === g.id ? null : g.id)}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(124,58,237,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{TYPE_ICONS[g.type] ?? '◆'}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: '#b47fff', textTransform: 'uppercase' }}>{g.type}</span>
+                    <span style={{ fontSize: 12, color: 'var(--text3)' }}>· {new Date(g.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--text2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.prompt}</div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  <button onClick={e => { e.stopPropagation(); navigator.clipboard.writeText(g.output); toast.success('Copied!') }}
+                    style={{ padding: '5px 12px', borderRadius: 7, fontSize: 12, cursor: 'pointer', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text3)' }}>📋</button>
+                  <span style={{ fontSize: 18, color: 'var(--text3)', display: 'flex', alignItems: 'center' }}>{expanded === g.id ? '▲' : '▼'}</span>
                 </div>
               </div>
-            ))}
-          </div>
-          {sel && (
-            <div className="card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">{TYPE_ICONS[sel.generation_type] ?? '✨'}</span>
-                  <span className="syne font-bold text-sm capitalize">{sel.generation_type}</span>
+              {expanded === g.id && (
+                <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+                  <pre style={{ fontSize: 13, color: 'var(--text2)', lineHeight: 1.7, whiteSpace: 'pre-wrap', fontFamily: 'inherit' }}>{g.output}</pre>
                 </div>
-                <button onClick={() => navigator.clipboard.writeText(sel.result ?? '').then(() => toast.success('Copied!'))} className="btn-ghost text-xs py-1 px-2">📋 Copy</button>
-              </div>
-              <div className="text-xs text-slate-500 mb-3 p-2 rounded-lg bg-white/5">Prompt: {sel.prompt}</div>
-              <div className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap overflow-y-auto" style={{ maxHeight: 400 }}>{sel.result}</div>
+              )}
             </div>
-          )}
+          ))}
         </div>
       )}
     </div>

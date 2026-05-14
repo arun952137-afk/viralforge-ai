@@ -1,79 +1,90 @@
 'use client'
-export const dynamic = 'force-dynamic'
-import { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
+export const dynamic = 'force-dynamic'
+
 export default function ProfilePage() {
-  const [profile, setProfile] = useState<{ username?: string; email?: string; plan?: string; credits?: number; created_at?: string } | null>(null)
-  const [username, setUsername] = useState('')
+  const [user, setUser] = useState<{ email?: string; id?: string } | null>(null)
+  const [profile, setProfile] = useState({ username: '', plan: 'free', credits: 0 })
+  const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      const { data: p } = await supabase.from('users').select('*').eq('id', data.user.id).single()
-      setProfile({ ...p, email: data.user.email })
-      setUsername(p?.username ?? '')
+      if (data.user) {
+        setUser(data.user)
+        const { data: p } = await supabase.from('users').select('*').eq('id', data.user.id).single()
+        if (p) setProfile({ username: p.username ?? '', plan: p.plan ?? 'free', credits: p.credits ?? 0 })
+        setLoading(false)
+      }
     })
   }, [])
 
   async function save() {
-    if (!username.trim()) { toast.error('Enter a username'); return }
+    if (!user?.id) return
     setSaving(true)
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setSaving(false); return }
-    const { error } = await supabase.from('users').update({ username: username.trim() }).eq('id', user.id)
+    const { error } = await supabase.from('users').update({ username: profile.username }).eq('id', user.id)
+    if (error) toast.error('Save failed')
+    else toast.success('Profile saved!')
     setSaving(false)
-    if (error) { toast.error(error.message); return }
-    setProfile(p => p ? { ...p, username: username.trim() } : p)
-    toast.success('Profile updated!')
   }
 
-  if (!profile) return <div className="h-48 skeleton rounded-2xl" />
+  const PLAN_COLOR: Record<string, string> = { free: '#3B82F6', starter: '#06B6D4', pro: '#7C3AED', studio: '#EC4899' }
 
   return (
-    <div className="space-y-6 animate-fade-in-up max-w-2xl">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, maxWidth: 640 }}>
       <div>
-        <h1 className="syne font-bold text-2xl">Profile</h1>
-        <p className="text-slate-400 text-sm mt-1">Manage your account settings</p>
+        <h1 className="syne" style={{ fontSize: 26, fontWeight: 800, color: '#fff' }}>👤 Profile</h1>
+        <p style={{ fontSize: 14, color: 'var(--text2)', marginTop: 4 }}>Manage your creator account</p>
       </div>
 
-      <div className="card p-6">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-white font-black text-2xl syne">
-            {(profile.username ?? profile.email ?? 'U')[0].toUpperCase()}
+      {/* Avatar + plan */}
+      <div className="card" style={{ padding: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 24 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 18, background: 'var(--grad2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, fontWeight: 700, color: '#fff', boxShadow: '0 0 24px rgba(124,58,237,.4)' }}>
+            {profile.username?.[0]?.toUpperCase() ?? '?'}
           </div>
           <div>
-            <div className="syne font-bold text-lg">{profile.username ?? profile.email?.split('@')[0]}</div>
-            <div className="text-slate-400 text-sm">{profile.email}</div>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="tag tag-purple capitalize">{profile.plan}</span>
-              <span className="tag tag-green">{profile.credits === -1 ? '∞' : profile.credits} credits</span>
+            <div className="syne" style={{ fontSize: 20, fontWeight: 800, color: '#fff' }}>{profile.username || 'Creator'}</div>
+            <div style={{ fontSize: 13, color: 'var(--text3)', marginTop: 2 }}>{user?.email}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+              <div style={{ padding: '2px 10px', borderRadius: 5, background: `${PLAN_COLOR[profile.plan]}20`, border: `1px solid ${PLAN_COLOR[profile.plan]}40`, fontSize: 11, fontWeight: 700, color: PLAN_COLOR[profile.plan], textTransform: 'uppercase' }}>{profile.plan}</div>
+              <span style={{ fontSize: 12, color: 'var(--text3)' }}>{profile.credits === -1 ? '∞ credits' : `${profile.credits} credits left`}</span>
             </div>
           </div>
         </div>
 
-        <div className="space-y-4">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
-            <label className="block text-xs text-slate-400 uppercase tracking-wider mb-2">Username</label>
-            <input className="input" value={username} onChange={e => setUsername(e.target.value)} placeholder="yourname" />
+            <label style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600, display: 'block', marginBottom: 6 }}>CREATOR HANDLE</label>
+            <input className="inp" placeholder="@yourchannel" value={profile.username} onChange={e => setProfile(p => ({ ...p, username: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-xs text-slate-400 uppercase tracking-wider mb-2">Email</label>
-            <input className="input opacity-50" value={profile.email ?? ''} disabled />
+            <label style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600, display: 'block', marginBottom: 6 }}>EMAIL</label>
+            <input className="inp" value={user?.email ?? ''} disabled style={{ opacity: 0.6 }} />
           </div>
-          <div>
-            <label className="block text-xs text-slate-400 uppercase tracking-wider mb-2">Plan</label>
-            <input className="input opacity-50 capitalize" value={profile.plan ?? 'free'} disabled />
-          </div>
-          <button className="btn-primary" onClick={save} disabled={saving}>{saving ? 'Saving...' : '💾 Save Changes'}</button>
+          <button onClick={save} disabled={saving} className="btn btn-p" style={{ width: '100%', justifyContent: 'center', padding: 13 }}>
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
         </div>
       </div>
 
-      <div className="card p-6 border-red-500/20" style={{ borderColor: 'rgba(239,68,68,0.2)' }}>
-        <h3 className="syne font-bold text-base text-red-400 mb-4">⚠️ Danger Zone</h3>
-        <button onClick={() => toast.error('Contact support to delete your account')} className="px-4 py-2 rounded-xl text-sm font-medium text-red-400 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 transition-all">Delete Account</button>
+      {/* Stats */}
+      <div className="card" style={{ padding: 24 }}>
+        <div className="syne" style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 16 }}>Account Stats</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          {[
+            { label: 'Plan', value: profile.plan.toUpperCase(), color: PLAN_COLOR[profile.plan] },
+            { label: 'Credits Left', value: profile.credits === -1 ? '∞' : profile.credits, color: '#b47fff' },
+          ].map(s => (
+            <div key={s.label} style={{ padding: '14px', borderRadius: 10, background: 'var(--surface)', textAlign: 'center' }}>
+              <div style={{ fontSize: 11, color: 'var(--text3)', fontWeight: 700, marginBottom: 6 }}>{s.label}</div>
+              <div className="syne" style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

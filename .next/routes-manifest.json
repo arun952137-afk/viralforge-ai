@@ -42,6 +42,24 @@
       "namedRegex": "^/_not\\-found(?:/)?$"
     },
     {
+      "page": "/analytics",
+      "regex": "^/analytics(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/analytics(?:/)?$"
+    },
+    {
+      "page": "/api/claude",
+      "regex": "^/api/claude(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/claude(?:/)?$"
+    },
+    {
+      "page": "/api/copilot",
+      "regex": "^/api/copilot(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/api/copilot(?:/)?$"
+    },
+    {
       "page": "/api/razorpay",
       "regex": "^/api/razorpay(?:/)?$",
       "routeKeys": {},
@@ -54,10 +72,34 @@
       "namedRegex": "^/billing(?:/)?$"
     },
     {
+      "page": "/brand",
+      "regex": "^/brand(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/brand(?:/)?$"
+    },
+    {
+      "page": "/competitor",
+      "regex": "^/competitor(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/competitor(?:/)?$"
+    },
+    {
+      "page": "/copilot",
+      "regex": "^/copilot(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/copilot(?:/)?$"
+    },
+    {
       "page": "/dashboard",
       "regex": "^/dashboard(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/dashboard(?:/)?$"
+    },
+    {
+      "page": "/faceless",
+      "regex": "^/faceless(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/faceless(?:/)?$"
     },
     {
       "page": "/favicon.ico",
@@ -96,6 +138,12 @@
       "namedRegex": "^/projects(?:/)?$"
     },
     {
+      "page": "/scheduler",
+      "regex": "^/scheduler(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/scheduler(?:/)?$"
+    },
+    {
       "page": "/signup",
       "regex": "^/signup(?:/)?$",
       "routeKeys": {},
@@ -106,6 +154,18 @@
       "regex": "^/studio(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/studio(?:/)?$"
+    },
+    {
+      "page": "/trends",
+      "regex": "^/trends(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/trends(?:/)?$"
+    },
+    {
+      "page": "/viral-engine",
+      "regex": "^/viral\\-engine(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/viral\\-engine(?:/)?$"
     }
   ],
   "dataRoutes": [],

@@ -5,76 +5,135 @@ import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import toast from 'react-hot-toast'
 
+export const dynamic = 'force-dynamic'
+
 const NAV = [
-  { href: '/dashboard', icon: '🏠', label: 'Dashboard' },
-  { href: '/studio',    icon: '✨', label: 'AI Studio' },
-  { href: '/projects',  icon: '📁', label: 'Projects' },
-  { href: '/history',   icon: '📜', label: 'History' },
-  { href: '/billing',   icon: '⚡', label: 'Billing' },
-  { href: '/profile',   icon: '👤', label: 'Profile' },
+  { label: 'CORE', items: [
+    { href: '/dashboard',    icon: '⬡', name: 'Command Center' },
+    { href: '/studio',       icon: '⚡', name: 'AI Studio' },
+    { href: '/copilot',      icon: '🤖', name: 'AI Copilot' },
+  ]},
+  { label: 'INTELLIGENCE', items: [
+    { href: '/analytics',    icon: '◈',  name: 'Analytics' },
+    { href: '/viral-engine', icon: '🔥', name: 'Viral Engine' },
+    { href: '/competitor',   icon: '🎯', name: 'Competitor AI' },
+    { href: '/trends',       icon: '📡', name: 'Trend Intel' },
+  ]},
+  { label: 'CREATION', items: [
+    { href: '/brand',        icon: '✦',  name: 'Brand Builder' },
+    { href: '/faceless',     icon: '🎬', name: 'Faceless AI' },
+    { href: '/scheduler',    icon: '📅', name: 'Scheduler' },
+    { href: '/projects',     icon: '📁', name: 'Projects' },
+    { href: '/history',      icon: '🕐', name: 'History' },
+  ]},
+  { label: 'ACCOUNT', items: [
+    { href: '/billing',      icon: '💎', name: 'Upgrade Plan' },
+    { href: '/profile',      icon: '👤', name: 'Profile' },
+  ]},
 ]
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+const PLAN_TAG: Record<string, string> = { free: 'tb', starter: 'tc', pro: 'tv', studio: 'tp' }
+
+export default function DashLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname()
   const router = useRouter()
-  const [user, setUser] = useState<{ email?: string; plan?: string; credits?: number } | null>(null)
+  const [user, setUser] = useState<{ email?: string; plan: string; credits: number; username?: string }>({ plan: 'free', credits: 0 })
   const [collapsed, setCollapsed] = useState(false)
+  const [mobile, setMobile] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.push('/login'); return }
-      const { data: profile } = await supabase.from('users').select('plan,credits').eq('id', data.user.id).single()
-      setUser({ email: data.user.email, plan: profile?.plan ?? 'free', credits: profile?.credits ?? 0 })
+      const { data: p } = await supabase.from('users').select('plan,credits,username').eq('id', data.user.id).single()
+      setUser({ email: data.user.email, plan: p?.plan ?? 'free', credits: p?.credits ?? 0, username: p?.username })
     })
   }, [router])
 
   async function logout() {
     await supabase.auth.signOut()
     toast.success('Signed out')
-    router.push('/login')
+    router.push('/')
   }
 
+  const W = collapsed ? 64 : 224
+
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg)' }}>
-      {/* Sidebar */}
-      <aside className={`${collapsed ? 'w-16' : 'w-56'} flex-shrink-0 flex flex-col transition-all duration-300`} style={{ background: 'var(--bg2)', borderRight: '1px solid var(--border)' }}>
-        {/* Logo */}
-        <div className="h-16 flex items-center px-4 gap-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
-          <div onClick={() => setCollapsed(c => !c)} className="w-8 h-8 rounded-lg bg-gradient-to-br from-violet-600 to-blue-600 flex items-center justify-center text-white font-black text-sm syne cursor-pointer flex-shrink-0">C</div>
-          {!collapsed && <span className="syne font-bold text-base">CREOVA</span>}
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: 'var(--bg)' }}>
+      {mobile && <div style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }} onClick={() => setMobile(false)} />}
+
+      <aside style={{
+        position: 'relative', zIndex: 50, display: 'flex', flexDirection: 'column',
+        flexShrink: 0, height: '100%',
+        width: W, transition: 'width .3s cubic-bezier(.4,0,.2,1)',
+        background: 'var(--bg2)', borderRight: '1px solid var(--border)',
+      }}>
+        <div style={{ height: 56, display: 'flex', alignItems: 'center', padding: '0 12px', gap: 10, borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+          <button onClick={() => setCollapsed(c => !c)} style={{
+            width: 32, height: 32, borderRadius: 9, background: 'var(--grad2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontFamily: 'Syne, sans-serif', fontWeight: 900, fontSize: 14,
+            border: 'none', cursor: 'pointer', flexShrink: 0,
+            boxShadow: '0 0 16px rgba(124,58,237,.55)',
+          }}>C</button>
+          {!collapsed && <div style={{ overflow: 'hidden' }}>
+            <div className="syne" style={{ fontWeight: 900, fontSize: 14, color: '#fff', lineHeight: 1 }}>CREOVA</div>
+            <div style={{ fontSize: 10, color: 'var(--text3)', fontWeight: 600 }}>AI Operating System</div>
+          </div>}
         </div>
-        {/* Nav */}
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto">
-          {NAV.map(n => {
-            const active = path === n.href || (n.href !== '/dashboard' && path.startsWith(n.href))
-            return (
-              <Link key={n.href} href={n.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${active ? 'bg-violet-600/20 text-violet-300 border border-violet-500/30' : 'text-slate-400 hover:text-slate-200 hover:bg-white/5'}`}>
-                <span className="text-base flex-shrink-0">{n.icon}</span>
-                {!collapsed && n.label}
-              </Link>
-            )
-          })}
-        </nav>
-        {/* User */}
-        <div className="p-3 flex-shrink-0" style={{ borderTop: '1px solid var(--border)' }}>
-          {!collapsed && user && (
-            <div className="mb-3 px-2">
-              <div className="text-xs text-slate-500 truncate">{user.email}</div>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="tag tag-purple text-xs capitalize">{user.plan}</span>
-                <span className="text-xs text-slate-400">{user.credits === -1 ? '∞' : user.credits} credits</span>
-              </div>
+
+        <nav style={{ flex: 1, overflowY: 'auto', padding: '10px 8px' }}>
+          {NAV.map(s => (
+            <div key={s.label} style={{ marginBottom: 18 }}>
+              {!collapsed && <div style={{ fontSize: 9, fontWeight: 800, letterSpacing: '0.12em', color: 'var(--text4)', padding: '0 6px', marginBottom: 6 }}>{s.label}</div>}
+              {s.items.map(n => {
+                const active = path === n.href || (n.href !== '/dashboard' && path.startsWith(n.href))
+                return (
+                  <Link key={n.href} href={n.href} onClick={() => setMobile(false)} style={{
+                    display: 'flex', alignItems: 'center', gap: 9,
+                    padding: collapsed ? '9px 0' : '8px 10px', justifyContent: collapsed ? 'center' : undefined,
+                    borderRadius: 10, fontSize: 13, fontWeight: 500, marginBottom: 2,
+                    textDecoration: 'none', transition: 'all .15s',
+                    background: active ? 'rgba(124,58,237,.14)' : 'transparent',
+                    border: `1px solid ${active ? 'rgba(124,58,237,.3)' : 'transparent'}`,
+                    color: active ? '#b47fff' : 'var(--text3)',
+                  }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>{n.icon}</span>
+                    {!collapsed && <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.name}</span>}
+                  </Link>
+                )
+              })}
             </div>
-          )}
-          <button onClick={logout} className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all w-full ${collapsed ? 'justify-center' : ''}`}>
-            <span>🚪</span>{!collapsed && 'Sign out'}
-          </button>
+          ))}
+        </nav>
+
+        <div style={{ padding: 8, borderTop: '1px solid var(--border)', flexShrink: 0 }}>
+          {!collapsed && <div style={{ padding: '8px 10px', marginBottom: 4, borderRadius: 10, background: 'rgba(255,255,255,0.03)' }}>
+            <div style={{ fontSize: 12, color: '#fff', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.username || user.email?.split('@')[0]}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
+              <span className={`tag ${PLAN_TAG[user.plan]}`} style={{ fontSize: 9 }}>{user.plan}</span>
+              <span style={{ fontSize: 11, color: 'var(--text3)' }}>{user.credits === -1 ? '∞' : user.credits} credits</span>
+            </div>
+          </div>}
+          <button onClick={logout} style={{
+            display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : undefined,
+            gap: 8, padding: collapsed ? '9px 0' : '8px 10px', width: '100%',
+            border: 'none', borderRadius: 10, background: 'transparent', color: 'var(--text3)',
+            fontSize: 13, cursor: 'pointer', transition: 'all .15s',
+          }}
+            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'}
+            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+          ><span>🚪</span>{!collapsed && 'Sign out'}</button>
         </div>
       </aside>
-      {/* Main */}
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6 max-w-6xl mx-auto">{children}</div>
+
+      <main style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ display: 'none' }} className="mobile-topbar">
+          <button onClick={() => setMobile(true)}>☰</button>
+          <span className="syne" style={{ fontWeight: 900, color: '#fff' }}>CREOVA</span>
+        </div>
+        <div style={{ flex: 1, padding: '24px 28px', maxWidth: 1400, width: '100%', margin: '0 auto' }}>
+          {children}
+        </div>
       </main>
     </div>
   )

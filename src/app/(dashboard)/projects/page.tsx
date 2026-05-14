@@ -1,113 +1,81 @@
 'use client'
-export const dynamic = 'force-dynamic'
-import { useEffect, useState, useCallback } from 'react'
-import { useDropzone } from 'react-dropzone'
-import toast from 'react-hot-toast'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
-import { formatDate } from '@/lib/utils'
+import toast from 'react-hot-toast'
+
+export const dynamic = 'force-dynamic'
 
 export default function ProjectsPage() {
-  const [userId, setUserId] = useState<string | null>(null)
-  const [assets, setAssets] = useState<{ id: string; file_name: string; file_type: string; file_url: string; file_size: number; created_at: string }[]>([])
-  const [uploading, setUploading] = useState(false)
-  const [progress, setProgress] = useState(0)
+  const [projects, setProjects] = useState<{ id: string; name: string; niche: string; created_at: string; status: string }[]>([])
+  const [newName, setNewName] = useState('')
+  const [newNiche, setNewNiche] = useState('')
+  const [creating, setCreating] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return
-      setUserId(data.user.id)
-      const { data: a } = await supabase.from('assets').select('*').eq('user_id', data.user.id).order('created_at', { ascending: false })
-      setAssets(a ?? [])
+      if (data.user) {
+        const { data: p } = await supabase.from('ai_workflows').select('*').eq('user_id', data.user.id).order('created_at', { ascending: false })
+        setProjects(p ?? [])
+      }
     })
   }, [])
 
-  const onDrop = useCallback(async (files: File[]) => {
-    if (!userId) return
-    for (const file of files) {
-      const allowed = ['video/mp4', 'video/quicktime', 'image/png', 'image/jpeg', 'image/webp']
-      if (!allowed.includes(file.type)) { toast.error(`${file.name} type not supported`); continue }
-      setUploading(true); setProgress(20)
-      const path = `${userId}/${Date.now()}-${file.name}`
-      const { data: up, error } = await supabase.storage.from('uploads').upload(path, file)
-      setProgress(80)
-      if (error) { toast.error(`Upload failed: ${error.message}`); setUploading(false); setProgress(0); continue }
-      const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path)
-      await supabase.from('assets').insert({ user_id: userId, file_name: file.name, file_type: file.type, file_url: publicUrl, file_size: file.size })
-      const { data: a } = await supabase.from('assets').select('*').eq('user_id', userId).order('created_at', { ascending: false })
-      setAssets(a ?? [])
-      setProgress(100)
-      setTimeout(() => { setUploading(false); setProgress(0) }, 500)
-      toast.success(`${file.name} uploaded!`)
+  async function create() {
+    if (!newName.trim()) { toast.error('Enter project name'); return }
+    setCreating(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (user) {
+      const { data, error } = await supabase.from('ai_workflows').insert({ user_id: user.id, name: newName, niche: newNiche, status: 'active' }).select().single()
+      if (!error && data) {
+        setProjects(p => [data, ...p])
+        setNewName(''); setNewNiche('')
+        toast.success('Project created!')
+      }
     }
-  }, [userId])
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'video/*': ['.mp4', '.mov'], 'image/*': ['.png', '.jpg', '.jpeg', '.webp'] } })
-
-  async function deleteAsset(id: string, url: string) {
-    await supabase.from('assets').delete().eq('id', id)
-    setAssets(a => a.filter(x => x.id !== id))
-    toast.success('Deleted')
-  }
-
-  function formatSize(bytes: number) {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+    setCreating(false)
   }
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <h1 className="syne font-bold text-2xl">Projects & Assets</h1>
-        <p className="text-slate-400 text-sm mt-1">Upload and manage your videos & images</p>
+        <h1 className="syne" style={{ fontSize: 26, fontWeight: 800, color: '#fff' }}>📁 Projects</h1>
+        <p style={{ fontSize: 14, color: 'var(--text2)', marginTop: 4 }}>Organize your content workflows and AI projects.</p>
       </div>
 
-      {/* Drop zone */}
-      <div {...getRootProps()} className={`card p-12 text-center cursor-pointer transition-all duration-200 border-dashed ${isDragActive ? 'border-violet-500/60 bg-violet-500/5' : 'hover:border-violet-500/30 hover:bg-white/2'}`} style={{ border: '2px dashed var(--border2)' }}>
-        <input {...getInputProps()} />
-        {uploading ? (
-          <div>
-            <div className="text-4xl mb-4">⬆️</div>
-            <p className="text-slate-300 font-medium mb-3">Uploading...</p>
-            <div className="w-48 mx-auto h-2 bg-white/5 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-violet-500 to-blue-500 rounded-full transition-all duration-300" style={{ width: `${progress}%` }} />
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="text-5xl mb-4">{isDragActive ? '⬇️' : '📁'}</div>
-            <p className="syne font-bold text-lg mb-2">{isDragActive ? 'Drop files here' : 'Drop files to upload'}</p>
-            <p className="text-slate-400 text-sm mb-4">MP4, MOV, PNG, JPG, WEBP supported</p>
-            <span className="btn-primary text-sm px-6 py-2">Browse Files</span>
-          </div>
-        )}
+      <div className="card" style={{ padding: 24, display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <label style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600, display: 'block', marginBottom: 6 }}>PROJECT NAME</label>
+          <input className="inp" placeholder="My Viral Channel Strategy" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => e.key === 'Enter' && create()} />
+        </div>
+        <div style={{ flex: 1, minWidth: 160 }}>
+          <label style={{ fontSize: 12, color: 'var(--text2)', fontWeight: 600, display: 'block', marginBottom: 6 }}>NICHE</label>
+          <input className="inp" placeholder="Finance, AI, Lifestyle…" value={newNiche} onChange={e => setNewNiche(e.target.value)} />
+        </div>
+        <button onClick={create} disabled={creating} className="btn btn-p" style={{ padding: '11px 22px', flexShrink: 0 }}>+ New Project</button>
       </div>
 
-      {/* Assets grid */}
-      {assets.length === 0 ? (
-        <div className="text-center py-16 text-slate-500">
-          <div className="text-5xl mb-4 opacity-40">📂</div>
-          <p>No assets uploaded yet. Drop your first file above!</p>
+      {projects.length === 0 ? (
+        <div className="card" style={{ padding: 60, textAlign: 'center' }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>📁</div>
+          <div className="syne" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text3)' }}>No projects yet</div>
+          <p style={{ fontSize: 14, color: 'var(--text4)', marginTop: 8 }}>Create your first project to organize your content workflow.</p>
         </div>
       ) : (
-        <div>
-          <h2 className="syne font-bold text-base mb-4">Your Assets ({assets.length})</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-            {assets.map(a => (
-              <div key={a.id} className="card p-3 group relative">
-                <div className="aspect-video bg-white/5 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                  {a.file_type.startsWith('image') ? (
-                    <img src={a.file_url} alt={a.file_name} className="w-full h-full object-cover rounded-lg" />
-                  ) : (
-                    <div className="text-4xl">🎬</div>
-                  )}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))', gap: 16 }}>
+          {projects.map(p => (
+            <div key={p.id} className="card card-h" style={{ padding: 22 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(124,58,237,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, marginBottom: 14, border: '1px solid rgba(124,58,237,.2)' }}>📁</div>
+              <div className="syne" style={{ fontSize: 15, fontWeight: 700, color: '#fff', marginBottom: 4 }}>{p.name}</div>
+              <div style={{ fontSize: 13, color: 'var(--text3)', marginBottom: 12 }}>{p.niche || 'General'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div className="live-dot" />
+                  <span style={{ fontSize: 12, color: 'var(--text3)' }}>{p.status}</span>
                 </div>
-                <p className="text-xs font-medium truncate text-slate-200">{a.file_name}</p>
-                <p className="text-xs text-slate-500">{formatSize(a.file_size)} · {formatDate(a.created_at)}</p>
-                <button onClick={() => deleteAsset(a.id, a.file_url)} className="absolute top-2 right-2 w-6 h-6 rounded-md bg-red-500/80 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">✕</button>
+                <span style={{ fontSize: 12, color: 'var(--text3)' }}>{new Date(p.created_at).toLocaleDateString()}</span>
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
