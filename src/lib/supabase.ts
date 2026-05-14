@@ -1,20 +1,16 @@
 import { createBrowserClient } from '@supabase/ssr'
 
-export function createClient() {
-  return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      auth: {
-        flowType: 'pkce',
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        persistSession: true,
-        storageKey: 'creova-auth-token',
-      },
-    }
-  )
-}
+const supabaseUrl  = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseKey  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
-// Singleton for client components
-export const supabase = createClient()
+// Use implicit flow — PKCE breaks in SSR/Vercel because the code_verifier
+// stored in localStorage on the client can't be read by the server-side callback.
+// Implicit flow sends tokens directly in the URL hash, handled client-side.
+export const supabase = createBrowserClient(supabaseUrl, supabaseKey, {
+  auth: {
+    flowType: 'implicit',
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    persistSession: true,
+  },
+})
