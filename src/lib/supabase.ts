@@ -9,5 +9,6 @@ export const supabase = createBrowserClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: true,
     detectSessionInUrl: true,
     persistSession: true,
+    storageKey: 'creova-auth',
   },
 })
