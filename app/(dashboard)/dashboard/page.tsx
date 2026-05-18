@@ -1,303 +1,415 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  AreaChart, Area, ResponsiveContainer, CartesianGrid,
-  XAxis, YAxis, Tooltip
+  AreaChart, Area, ResponsiveContainer, XAxis, YAxis, Tooltip, CartesianGrid
 } from "recharts";
 import {
-  Zap, TrendingUp, Eye, Clock, Flame, ArrowRight,
-  Video, Mic, FileText, RefreshCw, Play, BarChart3,
-  Target, Sparkles, Star
+  Sparkles, TrendingUp, Zap, ArrowRight, Plus, Flame,
+  Eye, Clock, Share2, BarChart3, Mic, Layers, Video,
+  Target, Hash, CheckCircle, Calendar, RefreshCw
 } from "lucide-react";
-import { StatCard, Card, Badge, Button, Progress, Skeleton, ScoreRing } from "@/components/ui";
-import { formatNumber } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
+import { motion as m } from "framer-motion";
+import { Card, Button, Badge, ScoreRing, StatCard } from "@/components/ui";
+import { formatNumber, cn } from "@/lib/utils";
 
-/* ── CHART DATA ──────────────────────────────────────────────────────── */
-function generateData(days: number) {
-  return Array.from({ length: days }, (_, i) => {
-    const d = new Date();
-    d.setDate(d.getDate() - (days - 1 - i));
-    const base = 8000 + i * 400 + Math.random() * 4000;
-    return {
-      date: d.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      views: Math.floor(base),
-      likes: Math.floor(base * 0.07),
-    };
-  });
+/* ── DATA ─────────────────────────────────────────────────────────── */
+const genSparkline = (n: number, base: number) =>
+  Array.from({ length: n }, (_, i) => ({
+    d: i, v: Math.floor(base + i * 120 + Math.sin(i * 0.9) * 800 + Math.random() * 600),
+  }));
+
+const SPARKLINE = genSparkline(14, 4000);
+
+const QUICK_ACTIONS = [
+  { label: "Write Script", icon: Sparkles, href: "/dashboard/scripts", color: "#6E42F5", desc: "AI viral script in 30s" },
+  { label: "Scan Trends", icon: TrendingUp, href: "/dashboard/trends", color: "#F5426E", desc: "Live trend radar" },
+  { label: "Repurpose", icon: Layers, href: "/dashboard/repurpose", color: "#0DCCB5", desc: "1 post → 10 formats" },
+  { label: "Schedule", icon: Calendar, href: "/dashboard/calendar", color: "#F5A623", desc: "Optimal time posting" },
+  { label: "Voice Studio", icon: Mic, href: "/dashboard/voice", color: "#42B4F5", desc: "AI voiceover" },
+  { label: "Analytics", icon: BarChart3, href: "/dashboard/analytics", color: "#8B62FF", desc: "Bloomberg terminal" },
+];
+
+const RECENT_VIDEOS = [
+  { title: "Balloon Adventure Ep.3", platform: "YouTube Shorts", views: 421000, score: 92, delta: "+31%" },
+  { title: "Rainbow Bus Rhyme 3D", platform: "TikTok", views: 183000, score: 85, delta: "+18%" },
+  { title: "Magic Garden Ep.4", platform: "Reels", views: 98000, score: 78, delta: "+9%" },
+];
+
+const LIVE_INSIGHTS = [
+  { icon: "🔥", text: "Sat 3–5 PM = +43% reach. Next slot in 2d 4h.", action: "Schedule Now", href: "/dashboard/calendar", color: "#F5A623" },
+  { icon: "🎯", text: '"What if…" hook drove 82% 3s retention vs 61% avg.', action: "Use in Hook Lab", href: "/dashboard/scripts", color: "#6E42F5" },
+  { icon: "📈", text: "3D animation niches up +340% this week on Shorts.", action: "See Trends", href: "/dashboard/trends", color: "#0DCCB5" },
+];
+
+const AI_TASKS = [
+  { label: "Analyze last 5 videos for hook patterns", done: true },
+  { label: "Generate 10 hooks for your next Balloon ep.", done: true },
+  { label: "Detect best posting windows", done: true },
+  { label: "Optimize captions for 9:16 reformat", done: false, active: true },
+  { label: "Predict viral score for Magic Garden Ep.5", done: false },
+];
+
+/* ── LIVE COUNTER ─────────────────────────────────────────────────── */
+function LiveCounter({ value, color }: { value: string; color: string }) {
+  const [disp, setDisp] = useState(value);
+  useEffect(() => {
+    const t = setInterval(() => {
+      setDisp(prev => {
+        const n = parseInt(prev.replace(/,/g, "")) + Math.floor(Math.random() * 18) - 4;
+        return n > 0 ? n.toLocaleString() : prev;
+      });
+    }, 2200);
+    return () => clearInterval(t);
+  }, []);
+  return <span style={{ color }} className="font-display text-3xl font-extrabold">{disp}</span>;
 }
 
-const CHART_DATA = generateData(14);
+/* ── TYPING EFFECT ────────────────────────────────────────────────── */
+function TypingText({ texts }: { texts: string[] }) {
+  const [i, setI] = useState(0);
+  const [text, setText] = useState("");
+  const [typing, setTyping] = useState(true);
+  useEffect(() => {
+    const target = texts[i % texts.length];
+    if (typing) {
+      if (text.length < target.length) {
+        const t = setTimeout(() => setText(target.slice(0, text.length + 1)), 55);
+        return () => clearTimeout(t);
+      } else {
+        const t = setTimeout(() => setTyping(false), 2200);
+        return () => clearTimeout(t);
+      }
+    } else {
+      if (text.length > 0) {
+        const t = setTimeout(() => setText(text.slice(0, -1)), 30);
+        return () => clearTimeout(t);
+      } else {
+        setI(n => n + 1);
+        setTyping(true);
+      }
+    }
+  }, [text, typing, i, texts]);
+  return (
+    <span className="text-[#6E42F5]">
+      {text}<span className="animate-pulse ml-0.5 border-r-2 border-[#6E42F5]" />
+    </span>
+  );
+}
 
-/* ── CUSTOM TOOLTIP ──────────────────────────────────────────────────── */
-const ChartTooltip = ({ active, payload, label }: any) => {
+/* ── TOOLTIP ─────────────────────────────────────────────────────── */
+const ChartTip = ({ active, payload, label }: any) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-canvas-200 border border-surface-border rounded-xl p-3 shadow-surface-md text-xs">
-      <p className="text-ink-tertiary mb-2 font-semibold">{label}</p>
-      {payload.map((p: any) => (
-        <div key={p.name} className="flex justify-between gap-4">
-          <span style={{ color: p.color }}>{p.name}</span>
-          <span className="font-bold text-ink-DEFAULT">{formatNumber(p.value)}</span>
-        </div>
-      ))}
+    <div className="bg-[#0E0E1A] border border-white/10 rounded-xl p-2.5 text-xs backdrop-blur-xl shadow-xl">
+      <p className="text-[#8B8BA8] mb-1">Day {label}</p>
+      <p className="font-bold text-[#6E42F5]">{formatNumber(payload[0].value)} views</p>
     </div>
   );
 };
 
-/* ── RECENT VIDEOS ───────────────────────────────────────────────────── */
-const RECENT = [
-  { title: "Balloon Adventure Episode 3", platform: "YouTube Shorts", status: "PUBLISHED", views: 421000, score: 92 },
-  { title: "Magic Garden 3D Rhyme", platform: "TikTok", status: "PUBLISHED", views: 183000, score: 85 },
-  { title: "Cloud Kingdom Part 1", platform: "Instagram Reels", status: "RENDERING", views: 0, score: 88 },
-  { title: "Rainbow Bus Adventure", platform: "YouTube Shorts", status: "DRAFT", views: 0, score: null },
-];
-
-const STATUS_BADGE: Record<string, { label: string; variant: any }> = {
-  PUBLISHED: { label: "Published", variant: "success" },
-  RENDERING: { label: "Rendering…", variant: "warning" },
-  DRAFT: { label: "Draft", variant: "default" },
-};
-
-/* ── QUICK ACTIONS ───────────────────────────────────────────────────── */
-const QUICK_ACTIONS = [
-  { label: "Create Video", desc: "Full AI pipeline", icon: Zap, href: "/dashboard/create", from: "#6E42F5", to: "#42B4F5" },
-  { label: "Write Script", desc: "Hook + scenes + CTA", icon: FileText, href: "/dashboard/scripts", from: "#0DCCB5", to: "#42B4F5" },
-  { label: "Find Trends", desc: "What's spiking now", icon: TrendingUp, href: "/dashboard/trends", from: "#F5426E", to: "#F5A623" },
-  { label: "Analytics", desc: "Views, CTR, retention", icon: BarChart3, href: "/dashboard/analytics", from: "#F5A623", to: "#6E42F5" },
-];
-
-/* ── INSIGHTS ────────────────────────────────────────────────────────── */
-const INSIGHTS = [
-  { icon: "🔥", title: "Best time to post", desc: "Saturday 3–5 PM gives you 43% more initial views in your niche.", action: "Schedule now" },
-  { icon: "💡", title: "Hook opportunity", desc: "\"AI reveals the truth about…\" format is up 340% this week.", action: "Use this hook" },
-  { icon: "📈", title: "Channel momentum", desc: "Your retention rate improved 8.2% this month. Keep the 30s hook structure.", action: "See breakdown" },
-];
-
-/* ── PAGE ────────────────────────────────────────────────────────────── */
+/* ── PAGE ─────────────────────────────────────────────────────────── */
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
-  useEffect(() => { setTimeout(() => setLoading(false), 600); }, []);
+  const { user } = useUser();
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+  const [credits] = useState(287);
+  const [creditsPct] = useState(287 / 300);
+  const [insightIdx, setInsightIdx] = useState(0);
 
-  const stagger = {
-    container: { hidden: {}, show: { transition: { staggerChildren: 0.07 } } },
-    item: { hidden: { opacity: 0, y: 16 }, show: { opacity: 1, y: 0 } },
-  };
+  useEffect(() => {
+    const t = setInterval(() => setInsightIdx(i => (i + 1) % LIVE_INSIGHTS.length), 5000);
+    return () => clearInterval(t);
+  }, []);
+
+  const insight = LIVE_INSIGHTS[insightIdx];
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
-      {/* Welcome */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="flex items-start justify-between"
-      >
-        <div>
-          <h2 className="font-display text-3xl font-extrabold tracking-tight mb-1">
-            Good morning ☀️
-          </h2>
-          <p className="text-ink-secondary text-sm">Your creator workspace is ready. Here's what matters today.</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <button className="w-9 h-9 rounded-xl flex items-center justify-center text-ink-tertiary hover:text-ink-DEFAULT hover:bg-surface-DEFAULT transition-colors border border-surface-border">
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <Link href="/dashboard/create">
-            <Button icon={<Zap className="w-4 h-4" />} glow>Create Video</Button>
-          </Link>
-        </div>
-      </motion.div>
+    <div className="max-w-[1400px] mx-auto space-y-6">
+      {/* ── GREETING HERO ── */}
+      <div className="relative overflow-hidden rounded-3xl p-8 border border-white/[0.06]" style={{ background: "linear-gradient(135deg,rgba(110,66,245,0.15) 0%,rgba(7,7,15,0.9) 50%,rgba(13,204,181,0.08) 100%)" }}>
+        {/* Background orb */}
+        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-20" style={{ background: "radial-gradient(circle,#6E42F5,transparent 70%)", filter: "blur(60px)" }} />
 
-      {/* Stats */}
-      <motion.div
-        variants={stagger.container}
-        initial="hidden" animate="show"
-        className="grid grid-cols-2 lg:grid-cols-4 gap-4"
-      >
-        {loading
-          ? Array.from({length: 4}).map((_,i) => <Skeleton key={i} className="h-28" />)
-          : [
-            { label: "Total Views", value: "8.2M", delta: { value: 24, label: "this week" }, icon: <Eye className="w-4 h-4" />, variant: "brand" as const },
-            { label: "Videos Made", value: "247", delta: { value: 12, label: "this month" }, icon: <Video className="w-4 h-4" />, variant: "teal" as const },
-            { label: "Avg Retention", value: "78%", delta: { value: 5.2, label: "improvement" }, icon: <Clock className="w-4 h-4" />, variant: "amber" as const },
-            { label: "Viral Score", value: "87", delta: { value: 3, label: "vs last week" }, icon: <Flame className="w-4 h-4" />, variant: "rose" as const },
-          ].map((s, i) => (
-            <motion.div key={s.label} variants={stagger.item}>
-              <StatCard {...s} />
-            </motion.div>
-          ))
-        }
-      </motion.div>
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div>
+            <p className="text-[#8B8BA8] text-sm mb-1">{greeting}, {user?.firstName ?? "Creator"} 👋</p>
+            <h1 className="font-display text-3xl lg:text-4xl font-extrabold tracking-tight mb-3">
+              Ready to{" "}
+              <TypingText texts={["go viral today?", "dominate Shorts?", "10× your reach?", "crush the algorithm?"]} />
+            </h1>
+            <p className="text-[#8B8BA8] text-sm max-w-lg">Your AI is actively scanning trends, analyzing your audience, and preparing your next viral opportunity.</p>
+          </div>
 
-      {/* Quick Actions */}
-      <div>
-        <p className="text-[11px] font-bold text-ink-tertiary uppercase tracking-widest mb-3">Quick Actions</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {QUICK_ACTIONS.map((a, i) => (
-            <motion.div
-              key={a.label}
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.07 }}
-            >
-              <Link href={a.href}>
-                <div className="group relative bg-canvas-50 border border-surface-border rounded-2xl p-5 cursor-pointer hover:border-surface-border-strong hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                    style={{ background: `radial-gradient(ellipse 80% 60% at 50% 0%, ${a.from}08, transparent)` }} />
-                  <div className="relative">
-                    <div className="w-9 h-9 rounded-xl mb-3 flex items-center justify-center"
-                      style={{ background: `linear-gradient(135deg, ${a.from}20, ${a.to}15)`, border: `1px solid ${a.from}25` }}>
-                      <a.icon className="w-4 h-4" style={{ color: a.from }} />
-                    </div>
-                    <p className="text-sm font-semibold mb-0.5">{a.label}</p>
-                    <p className="text-[11px] text-ink-tertiary">{a.desc}</p>
-                  </div>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
+          <div className="flex flex-col items-end gap-4">
+            {/* Credits widget */}
+            <div className="bg-white/[0.04] border border-white/[0.08] rounded-2xl p-4 min-w-[180px]">
+              <p className="text-[10px] text-[#4A4A64] uppercase tracking-widest mb-1">AI Credits</p>
+              <div className="flex items-end justify-between mb-2">
+                <span className="font-display text-2xl font-bold text-[#0DCCB5]">{credits}</span>
+                <span className="text-xs text-[#4A4A64]">/ 300</span>
+              </div>
+              <div className="h-1.5 bg-white/[0.06] rounded-full overflow-hidden">
+                <motion.div className="h-full rounded-full bg-gradient-to-r from-[#6E42F5] to-[#0DCCB5]" initial={{ width: 0 }} animate={{ width: `${creditsPct * 100}%` }} transition={{ duration: 1.2, ease: [0.25, 0.46, 0.45, 0.94] }} />
+              </div>
+              <p className="text-[10px] text-[#4A4A64] mt-1.5">Resets in 13 days</p>
+            </div>
+
+            <Link href="/dashboard/create">
+              <Button glow size="lg" icon={<Plus className="w-5 h-5" />}>Create New Video</Button>
+            </Link>
+          </div>
         </div>
       </div>
 
-      {/* Main content area */}
+      {/* ── LIVE INSIGHT BANNER ── */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={insightIdx}
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 8 }}
+          className="flex items-center justify-between p-4 rounded-2xl border"
+          style={{ background: `${insight.color}08`, borderColor: `${insight.color}25` }}
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-xl">{insight.icon}</span>
+            <div>
+              <p className="text-xs text-[#4A4A64] font-semibold uppercase tracking-widest mb-0.5">AI Insight</p>
+              <p className="text-sm text-[#8B8BA8]">{insight.text}</p>
+            </div>
+          </div>
+          <Link href={insight.href}>
+            <Button size="sm" style={{ background: insight.color }} className="text-white hover:opacity-90 shrink-0" icon={<ArrowRight className="w-3.5 h-3.5" />}>
+              {insight.action}
+            </Button>
+          </Link>
+        </motion.div>
+      </AnimatePresence>
+
+      {/* ── STATS ROW ── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="p-5">
+          <p className="text-[10px] text-[#4A4A64] uppercase tracking-widest mb-2">Total Views</p>
+          <LiveCounter value="8,241,000" color="#6E42F5" />
+          <div className="flex items-center gap-1 mt-1.5">
+            <TrendingUp className="w-3 h-3 text-[#0DCCB5]" />
+            <span className="text-xs text-[#0DCCB5] font-semibold">+22% this month</span>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <p className="text-[10px] text-[#4A4A64] uppercase tracking-widest mb-2">Avg Viral Score</p>
+          <span className="font-display text-3xl font-extrabold text-[#F5A623]">87.4</span>
+          <div className="flex items-center gap-1 mt-1.5">
+            <TrendingUp className="w-3 h-3 text-[#0DCCB5]" />
+            <span className="text-xs text-[#0DCCB5] font-semibold">+3.8 pts</span>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <p className="text-[10px] text-[#4A4A64] uppercase tracking-widest mb-2">Avg Retention</p>
+          <span className="font-display text-3xl font-extrabold text-[#0DCCB5]">78.4%</span>
+          <div className="flex items-center gap-1 mt-1.5">
+            <TrendingUp className="w-3 h-3 text-[#0DCCB5]" />
+            <span className="text-xs text-[#0DCCB5] font-semibold">+5.2%</span>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <p className="text-[10px] text-[#4A4A64] uppercase tracking-widest mb-2">New Followers</p>
+          <LiveCounter value="12,400" color="#F5426E" />
+          <div className="flex items-center gap-1 mt-1.5">
+            <TrendingUp className="w-3 h-3 text-[#0DCCB5]" />
+            <span className="text-xs text-[#0DCCB5] font-semibold">+18%</span>
+          </div>
+        </Card>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Views chart */}
-        <div className="lg:col-span-2">
-          <Card className="p-6" padding={false}>
-            <div className="p-6 pb-0">
-              <div className="flex items-center justify-between mb-5">
-                <div>
-                  <h3 className="font-display font-bold text-base">Views — Last 14 Days</h3>
-                  <p className="text-xs text-ink-tertiary mt-0.5">Across all platforms</p>
-                </div>
-                <div className="flex gap-3 text-xs">
-                  {[{ label: "Views", color: "#6E42F5" }, { label: "Likes", color: "#0DCCB5" }].map(item => (
-                    <div key={item.label} className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
-                      <span className="text-ink-tertiary">{item.label}</span>
+        {/* ── MAIN: chart + recent + quick actions ── */}
+        <div className="lg:col-span-2 space-y-5">
+          {/* Performance chart */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div>
+                <h3 className="font-display font-bold text-base">Views — Last 14 Days</h3>
+                <p className="text-xs text-[#4A4A64] mt-0.5">Across all platforms combined</p>
+              </div>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#0DCCB5]/10 border border-[#0DCCB5]/20">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#0DCCB5] animate-pulse" />
+                <span className="text-[10px] font-bold text-[#0DCCB5] uppercase tracking-widest">Live</span>
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={160}>
+              <AreaChart data={SPARKLINE} margin={{ top: 5, right: 8, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id="dg" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#6E42F5" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#6E42F5" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
+                <XAxis dataKey="d" tick={{ fill: "#4A4A64", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `D${v + 1}`} />
+                <YAxis tick={{ fill: "#4A4A64", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => formatNumber(v)} />
+                <Tooltip content={<ChartTip />} />
+                <Area type="monotone" dataKey="v" stroke="#6E42F5" strokeWidth={2} fill="url(#dg)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {/* Quick actions */}
+          <div>
+            <h3 className="font-display font-bold text-sm mb-3">Quick Actions</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {QUICK_ACTIONS.map((action, i) => (
+                <Link href={action.href} key={action.label}>
+                  <motion.div
+                    whileHover={{ y: -3, scale: 1.01 }}
+                    whileTap={{ scale: 0.97 }}
+                    className="p-4 rounded-2xl border border-white/[0.06] bg-[#0E0E1A] hover:border-white/[0.14] transition-all cursor-pointer group"
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110" style={{ background: `${action.color}18` }}>
+                      <action.icon className="w-5 h-5" style={{ color: action.color }} />
                     </div>
-                  ))}
+                    <p className="text-sm font-semibold mb-0.5">{action.label}</p>
+                    <p className="text-[10px] text-[#4A4A64]">{action.desc}</p>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Recent videos */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-display font-bold text-sm">Recent Performance</h3>
+              <Link href="/dashboard/analytics" className="text-xs text-[#6E42F5] font-semibold hover:text-[#8B62FF] flex items-center gap-1">All videos <ArrowRight className="w-3 h-3" /></Link>
+            </div>
+            <div className="space-y-2">
+              {RECENT_VIDEOS.map((v, i) => (
+                <motion.div key={v.title} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.08 }}
+                  className="flex items-center gap-4 p-4 rounded-xl border border-white/[0.06] bg-[#0E0E1A] hover:border-white/[0.10] transition-all cursor-pointer">
+                  <div className="w-10 h-10 rounded-xl bg-[#6E42F5]/12 flex items-center justify-center text-[#6E42F5] font-bold text-sm flex-shrink-0">#{i + 1}</div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate">{v.title}</p>
+                    <p className="text-xs text-[#4A4A64]">{v.platform}</p>
+                  </div>
+                  <div className="flex items-center gap-4 text-right flex-shrink-0">
+                    <div>
+                      <p className="text-sm font-bold text-[#0DCCB5]">{formatNumber(v.views)}</p>
+                      <p className="text-[10px] text-[#4A4A64]">views</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-[#F5A623]">{v.delta}</p>
+                      <p className="text-[10px] text-[#4A4A64]">growth</p>
+                    </div>
+                    <ScoreRing value={v.score} size={44} label="" />
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── SIDEBAR: AI agent + trending ── */}
+        <div className="space-y-5">
+          {/* AI working state */}
+          <Card className="p-5" style={{ background: "linear-gradient(135deg,rgba(110,66,245,0.1),rgba(7,7,15,0.95))", border: "1px solid rgba(110,66,245,0.2)" }}>
+            <div className="flex items-center gap-2 mb-4">
+              <div className="w-8 h-8 rounded-xl bg-[#6E42F5]/20 flex items-center justify-center">
+                <Sparkles className="w-4 h-4 text-[#6E42F5] animate-pulse" />
+              </div>
+              <div>
+                <p className="text-sm font-bold">ViralForge AI</p>
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#0DCCB5] animate-pulse" />
+                  <span className="text-[10px] text-[#0DCCB5]">Working for you</span>
                 </div>
               </div>
             </div>
-            <div className="px-2">
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={CHART_DATA} margin={{ top: 5, right: 16, bottom: 0, left: 0 }}>
-                  <defs>
-                    {[{id:"views",c:"#6E42F5"},{id:"likes",c:"#0DCCB5"}].map(({id,c})=>(
-                      <linearGradient key={id} id={id} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={c} stopOpacity={0.25} />
-                        <stop offset="100%" stopColor={c} stopOpacity={0} />
-                      </linearGradient>
-                    ))}
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.04)" vertical={false} />
-                  <XAxis dataKey="date" tick={{ fill: "#4A4A64", fontSize: 11 }} axisLine={false} tickLine={false} interval={3} />
-                  <YAxis tick={{ fill: "#4A4A64", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => formatNumber(v)} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Area type="monotone" dataKey="views" name="Views" stroke="#6E42F5" strokeWidth={2} fill="url(#views)" />
-                  <Area type="monotone" dataKey="likes" name="Likes" stroke="#0DCCB5" strokeWidth={2} fill="url(#likes)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </Card>
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-5">
-          {/* Viral Score Breakdown */}
-          <Card>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-display font-bold text-sm">Viral Intelligence</h3>
-              <Badge variant="brand">Live</Badge>
-            </div>
-            <div className="flex justify-around mb-4">
-              <ScoreRing value={92} label="Hook" size={64} />
-              <ScoreRing value={87} label="Retention" size={64} />
-              <ScoreRing value={89} label="Overall" size={64} />
-            </div>
-            <div className="p-3 bg-brand/6 border border-brand/15 rounded-xl">
-              <p className="text-[11px] text-brand-light font-semibold mb-1">💡 AI Insight</p>
-              <p className="text-xs text-ink-tertiary leading-relaxed">Strengthen your 3s hook to push overall score above 94.</p>
-            </div>
-          </Card>
-
-          {/* AI Insights */}
-          <Card>
-            <div className="flex items-center gap-2 mb-4">
-              <Sparkles className="w-4 h-4 text-accent-amber" />
-              <h3 className="font-display font-bold text-sm">AI Insights</h3>
-            </div>
-            <div className="space-y-3">
-              {INSIGHTS.map((ins, i) => (
-                <div key={i} className="flex gap-3 p-3 rounded-xl bg-surface-DEFAULT hover:bg-surface-hover transition-colors cursor-pointer group">
-                  <span className="text-lg flex-shrink-0">{ins.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold mb-0.5">{ins.title}</p>
-                    <p className="text-[11px] text-ink-tertiary leading-relaxed mb-1.5">{ins.desc}</p>
-                    <span className="text-[10px] text-brand-light font-semibold group-hover:underline">{ins.action} →</span>
-                  </div>
+            <div className="space-y-2.5">
+              {AI_TASKS.map((task, i) => (
+                <div key={i} className="flex items-start gap-2.5">
+                  {task.done ? (
+                    <CheckCircle className="w-4 h-4 text-[#0DCCB5] flex-shrink-0 mt-0.5" />
+                  ) : task.active ? (
+                    <RefreshCw className="w-4 h-4 text-[#6E42F5] flex-shrink-0 mt-0.5 animate-spin" />
+                  ) : (
+                    <div className="w-4 h-4 rounded-full border border-white/[0.12] flex-shrink-0 mt-0.5" />
+                  )}
+                  <p className={cn("text-xs leading-relaxed", task.done ? "text-[#4A4A64] line-through" : task.active ? "text-white" : "text-[#8B8BA8]")}>
+                    {task.label}
+                  </p>
                 </div>
               ))}
             </div>
           </Card>
+
+          {/* Trending now */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Flame className="w-4 h-4 text-[#F5426E]" />
+                <h3 className="font-display font-bold text-sm">Trending Now</h3>
+              </div>
+              <Badge variant="danger" dot>Live</Badge>
+            </div>
+            <div className="space-y-3">
+              {[
+                { topic: "AI reveals hidden truth…", velocity: "+340%", color: "#F5426E" },
+                { topic: "I tried [thing] for 30 days", velocity: "+280%", color: "#F5A623" },
+                { topic: "POV: only you notice this", velocity: "+190%", color: "#0DCCB5" },
+                { topic: "The [profession] secret", velocity: "+156%", color: "#6E42F5" },
+              ].map((t, i) => (
+                <div key={i} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-[#4A4A64]">#{i + 1}</span>
+                    <p className="text-xs text-[#8B8BA8] truncate max-w-[140px]">{t.topic}</p>
+                  </div>
+                  <span className="text-xs font-bold flex-shrink-0" style={{ color: t.color }}>{t.velocity}</span>
+                </div>
+              ))}
+              <Link href="/dashboard/trends">
+                <Button variant="secondary" size="sm" className="w-full mt-2" icon={<ArrowRight className="w-3.5 h-3.5" />}>Full Trend Radar</Button>
+              </Link>
+            </div>
+          </Card>
+
+          {/* Upcoming posts */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-display font-bold text-sm">Scheduled</h3>
+              <Link href="/dashboard/calendar" className="text-xs text-[#6E42F5] font-semibold hover:text-[#8B62FF]">See all</Link>
+            </div>
+            <div className="space-y-2.5">
+              {[
+                { title: "Balloon Ep.4", platform: "YT Shorts", time: "Sat 3:00 PM", color: "#FF4444" },
+                { title: "Rainbow Bus Dance", platform: "TikTok", time: "Sun 5:00 PM", color: "#00F2EA" },
+                { title: "Cloud Kingdom BTS", platform: "Reels", time: "Mon 12:00 PM", color: "#E1306C" },
+              ].map((post, i) => (
+                <div key={i} className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04]">
+                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: post.color }} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold truncate">{post.title}</p>
+                    <p className="text-[10px] text-[#4A4A64]">{post.platform}</p>
+                  </div>
+                  <p className="text-[10px] text-[#4A4A64] flex-shrink-0">{post.time}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          {/* Upgrade CTA */}
+          <div className="p-5 rounded-2xl" style={{ background: "linear-gradient(135deg,rgba(245,66,110,0.15),rgba(110,66,245,0.15))", border: "1px solid rgba(245,66,110,0.2)" }}>
+            <p className="font-display font-bold text-base mb-1">Go Studio Plan 🚀</p>
+            <p className="text-xs text-[#8B8BA8] mb-4">1,000 credits/mo · Team seats · Priority rendering · Custom voice clone</p>
+            <Link href="/dashboard/billing">
+              <Button size="sm" className="w-full" style={{ background: "linear-gradient(135deg,#F5426E,#6E42F5)" }}>Upgrade Now — ₹4,999/mo</Button>
+            </Link>
+          </div>
         </div>
       </div>
-
-      {/* Recent Videos */}
-      <Card padding={false}>
-        <div className="px-6 py-4 border-b border-surface-border flex items-center justify-between">
-          <h3 className="font-display font-bold text-base">Recent Videos</h3>
-          <Link href="/dashboard/projects">
-            <Button variant="ghost" size="sm" iconRight={<ArrowRight className="w-3.5 h-3.5" />}>View all</Button>
-          </Link>
-        </div>
-        <div>
-          {RECENT.map((v, i) => (
-            <div
-              key={v.title}
-              className={cn(
-                "flex items-center gap-4 px-6 py-4 hover:bg-surface-DEFAULT transition-colors",
-                i < RECENT.length - 1 && "border-b border-surface-border"
-              )}
-            >
-              {/* Thumbnail placeholder */}
-              <div className="w-14 h-10 rounded-xl flex-shrink-0 flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg, rgba(110,66,245,0.2), rgba(66,180,245,0.15))" }}>
-                <Play className="w-3.5 h-3.5 text-brand-light" />
-              </div>
-
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{v.title}</p>
-                <p className="text-xs text-ink-tertiary">{v.platform}</p>
-              </div>
-
-              <div className="flex items-center gap-4 flex-shrink-0">
-                {v.views > 0 && (
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-accent-teal">{formatNumber(v.views)}</p>
-                    <p className="text-[10px] text-ink-tertiary">views</p>
-                  </div>
-                )}
-                {v.score && (
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold"
-                    style={{
-                      color: v.score >= 90 ? "#0DCCB5" : v.score >= 75 ? "#6E42F5" : "#F5A623",
-                      background: v.score >= 90 ? "#0DCCB515" : v.score >= 75 ? "#6E42F515" : "#F5A62315",
-                      border: `1px solid ${v.score >= 90 ? "#0DCCB525" : v.score >= 75 ? "#6E42F525" : "#F5A62325"}`,
-                    }}>
-                    {v.score}
-                  </div>
-                )}
-                <Badge variant={STATUS_BADGE[v.status]?.variant}>{STATUS_BADGE[v.status]?.label}</Badge>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
     </div>
   );
 }
