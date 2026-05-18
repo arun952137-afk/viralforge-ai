@@ -58,7 +58,7 @@ Button.displayName = "Button";
    CARD
 ───────────────────────────────────────────── */
 export function Card({
-  children, className, hover, glow, glass, padding = true,
+  children, className, hover, glow, glass, padding = true, style,
 }: {
   children: React.ReactNode;
   className?: string;
@@ -66,6 +66,7 @@ export function Card({
   glow?: "brand" | "teal" | "rose";
   glass?: boolean;
   padding?: boolean;
+  style?: React.CSSProperties;
 }) {
   const glows = {
     brand: "shadow-brand-sm",
@@ -74,7 +75,7 @@ export function Card({
   };
 
   return (
-    <div className={cn(
+    <div style={style} className={cn(
       "rounded-2xl border border-surface-border",
       glass ? "glass" : "bg-canvas-50",
       padding && "p-6",
