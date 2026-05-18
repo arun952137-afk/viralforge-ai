@@ -1,11 +1,28 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
-// ── SINGLETON CLIENT ──────────────────────────────────────────────────────────
-export const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID!,
-  key_secret: process.env.RAZORPAY_KEY_SECRET!,
-});
+// ── LAZY SINGLETON CLIENT ─────────────────────────────────────────────────────
+// Lazy-initialize so module import never crashes during build when env vars are absent.
+let _rzp: Razorpay | null = null;
+
+function getRazorpay(): Razorpay {
+  if (_rzp) return _rzp;
+  const key = process.env.RAZORPAY_KEY_ID;
+  const secret = process.env.RAZORPAY_KEY_SECRET;
+  if (!key || !secret) {
+    throw new Error("RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET must be set in environment variables.");
+  }
+  _rzp = new Razorpay({ key_id: key, key_secret: secret });
+  return _rzp;
+}
+
+// Keep razorpay as a named export for call-site compatibility (used as getter)
+export const razorpay = {
+  get customers() { return getRazorpay().customers; },
+  get subscriptions() { return getRazorpay().subscriptions; },
+  get orders() { return getRazorpay().orders; },
+  get payments() { return getRazorpay().payments; },
+};
 
 // ── PLAN DEFINITIONS ──────────────────────────────────────────────────────────
 export type PlanId = "free" | "creator_pro" | "creator_studio" | "enterprise";
