@@ -1,60 +1,69 @@
 // src/index.js
 // CREOVA GROWTH AGENT — Entry Point
-// Start with: node src/index.js
+// All commands callable from GitHub Actions — no server needed.
 
 import { createLogger } from "./lib/logger.js";
-import { startOrchestrator, triggerNow } from "./agent/orchestrator.js";
-import { detectNewFeatures } from "./agents/github-detector.js";
 import { config } from "./config/index.js";
 
 const log = createLogger("MAIN");
 
-// ─── STARTUP ─────────────────────────────────────────────────────────────────
-
 async function main() {
-  log.info("╔═══════════════════════════════════════════════╗");
-  log.info("║   CREOVA GROWTH AGENT v2.0                    ║");
-  log.info("║   Autonomous Social Growth Operating System   ║");
-  log.info("║   INTERNAL USE ONLY — Creova Studio           ║");
-  log.info("╚═══════════════════════════════════════════════╝\n");
-
-  // Parse CLI args
-  const args = process.argv.slice(2);
-  const command = args[0];
+  const command = process.argv[2] || "start";
+  log.info(`▶ Command: ${command}`);
 
   switch (command) {
-    case "post-now":
-      // Manual trigger: node src/index.js post-now [twitter|instagram]
-      const platform = args[1] || "twitter";
-      log.info(`⚡ Manual post trigger for: ${platform}`);
-      await triggerNow(platform);
-      process.exit(0);
-      break;
 
-    case "detect-features":
-      // Manually check GitHub for new features
-      log.info("🔍 Manual GitHub feature scan...");
-      const features = await detectNewFeatures();
-      log.info(`Found ${features.length} new features to announce`);
-      process.exit(0);
+    case "post-now": {
+      const { triggerNow } = await import("./agent/orchestrator.js");
+      const platform = process.argv[3] || "twitter";
+      await triggerNow(platform);
       break;
+    }
+
+    case "refresh-trends": {
+      const { getRecentPosts } = await import("./db/index.js");
+      const { runTrendHunter } = await import("./agents/trend-hunter.js");
+      const recent = await getRecentPosts(10);
+      const trends = await runTrendHunter(recent.map(p => ({ topic: p.topic || "" })));
+      log.info(`Refreshed ${trends.length} trends`);
+      break;
+    }
+
+    case "detect-features": {
+      const { detectNewFeatures } = await import("./agents/github-detector.js");
+      const features = await detectNewFeatures();
+      log.info(`Detected ${features.length} new features`);
+      break;
+    }
+
+    case "run-learning": {
+      const { runLearningCycle } = await import("./agents/analytics-learner.js");
+      await runLearningCycle();
+      break;
+    }
+
+    case "run-engagement": {
+      const { runEngagementFarmer } = await import("./agents/engagement-farmer.js");
+      await runEngagementFarmer();
+      break;
+    }
+
+    case "competitor-intel": {
+      const { runCompetitorIntel } = await import("./agents/competitor-intel.js");
+      await runCompetitorIntel();
+      break;
+    }
 
     case "start":
-    default:
-      // Normal daemon mode — runs 24/7
-      log.info("Starting autonomous agent daemon...");
+    default: {
+      // Traditional daemon mode — only needed if self-hosting on Railway/Render
+      const { startOrchestrator } = await import("./agent/orchestrator.js");
       await startOrchestrator();
-      log.info("Agent is alive and watching. 👁\n");
-      // Keep process alive
-      process.on("SIGINT", () => {
-        log.info("Agent stopped by user.");
-        process.exit(0);
-      });
+      log.info("Agent daemon running. Ctrl+C to stop.");
+      process.on("SIGINT", () => { log.info("Stopped."); process.exit(0); });
       break;
+    }
   }
 }
 
-main().catch(e => {
-  console.error("FATAL:", e);
-  process.exit(1);
-});
+main().catch(e => { console.error("FATAL:", e); process.exit(1); });

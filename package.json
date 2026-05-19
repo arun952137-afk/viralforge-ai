@@ -9,7 +9,16 @@
     "dev": "node --watch src/index.js",
     "agent": "node src/agent/orchestrator.js",
     "worker": "node src/workers/content-worker.js",
-    "migrate": "node src/db/migrate.js"
+    "migrate": "node src/db/migrate.js",
+    "setup": "node scripts/setup.js",
+    "post-now": "node src/index.js post-now",
+    "refresh-trends": "node src/index.js refresh-trends",
+    "detect-features": "node src/index.js detect-features",
+    "run-learning": "node src/index.js run-learning",
+    "run-engagement": "node src/index.js run-engagement",
+    "competitor-intel": "node src/index.js competitor-intel"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }
