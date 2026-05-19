@@ -9,7 +9,7 @@ import {
   LayoutDashboard, Zap, FileText, TrendingUp, Mic,
   Video, BarChart3, Upload, FolderOpen, Users,
   CreditCard, Settings, Shield, Calendar, RefreshCw,
-  ChevronLeft, ChevronRight, Plus
+  ChevronLeft, ChevronRight, Plus, Cpu
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -42,6 +42,7 @@ const NAV = [
       { href: "/dashboard/billing", icon: CreditCard, label: "Billing" },
       { href: "/dashboard/settings", icon: Settings, label: "Settings" },
       { href: "/dashboard/admin", icon: Shield, label: "Admin", admin: true },
+      { href: "/dashboard/growth-agent", icon: Cpu, label: "Growth Agent", admin: true },
     ],
   },
 ];
