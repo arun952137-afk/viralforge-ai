@@ -27,7 +27,10 @@ import { runDesigner, downloadImageBuffer, uploadToStorage } from "../agents/des
 import { runQualityReview } from "../agents/quality-reviewer.js";
 import { publishToTwitter, publishToInstagram, trackTwitterEngagement, trackInstagramEngagement } from "../agents/publisher.js";
 import { detectNewFeatures, getUnAnnouncedFeatures, generateFeatureLaunchPost } from "../agents/github-detector.js";
-import { getRecentPosts, getAgentState, setAgentState, getActiveTrends } from "../db/index.js";
+import { runLearningCycle } from "../agents/analytics-learner.js";
+import { runEngagementFarmer } from "../agents/engagement-farmer.js";
+import { runCompetitorIntel } from "../agents/competitor-intel.js";
+import { enqueueAnalyticsJob } from "../jobs/queue.js";
 import { notifyAgentStarted, notifyTelegram, notifyQCRejected, notifyPostFailed } from "../services/notifications.js";
 
 const log = createLogger("ORCHESTRATOR");
@@ -235,6 +238,24 @@ export async function startOrchestrator() {
     log.info("🔄 Refreshing trend intelligence...");
     const recent = await getRecentPosts(10);
     await runTrendHunter(recent.map(p => ({ topic: p.topic || "" })));
+  }, { timezone: config.agent.timezone });
+
+  // Engagement farming — twice per day (drive inbound)
+  cron.schedule("0 10,17 * * *", async () => {
+    log.info("🌾 Engagement farming run...");
+    await runEngagementFarmer();
+  }, { timezone: config.agent.timezone });
+
+  // Weekly learning cycle — every Monday 6 AM
+  cron.schedule("0 6 * * 1", async () => {
+    log.info("🧠 Weekly learning cycle...");
+    await runLearningCycle();
+  }, { timezone: config.agent.timezone });
+
+  // Competitor intelligence — every Sunday 7 AM
+  cron.schedule("0 7 * * 0", async () => {
+    log.info("🕵️ Competitor intelligence scan...");
+    await runCompetitorIntel();
   }, { timezone: config.agent.timezone });
 
   log.info("✅ All cron jobs scheduled");
