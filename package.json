@@ -5,11 +5,8 @@
   "type": "module",
   "main": "src/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
-    "agent": "node src/agent/orchestrator.js",
-    "worker": "node src/workers/content-worker.js",
-    "migrate": "node src/db/migrate.js",
+    "start": "node src/index.js start",
+    "dev": "node --watch src/index.js start",
     "setup": "node scripts/setup.js",
     "post-now": "node src/index.js post-now",
     "refresh-trends": "node src/index.js refresh-trends",
@@ -18,7 +15,17 @@
     "run-engagement": "node src/index.js run-engagement",
     "competitor-intel": "node src/index.js competitor-intel"
   },
-  "engines": {
-    "node": ">=20"
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.106.0",
+    "axios": "^1.16.1",
+    "bullmq": "^5.76.10",
+    "cheerio": "^1.2.0",
+    "dotenv": "^17.4.2",
+    "form-data": "^4.0.5",
+    "node-cron": "^4.2.1",
+    "openai": "^6.38.0",
+    "twitter-api-v2": "^1.29.0",
+    "uuid": "^14.0.0"
   }
 }
