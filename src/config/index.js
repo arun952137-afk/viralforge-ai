@@ -1,8 +1,9 @@
 // src/config/index.js
 // Central config — single source of truth for all agent settings
 
+// Load .env for local dev; in GitHub Actions env vars come from secrets directly
 import dotenv from "dotenv";
-dotenv.config();
+try { dotenv.config({ quiet: true }); } catch { /* CI uses process.env directly */ }
 
 export const config = {
   // AI
@@ -62,7 +63,7 @@ export const config = {
 
   // GitHub
   github: {
-    token: process.env.GITHUB_TOKEN,
+    token: process.env.AGENT_GITHUB_TOKEN || process.env.GITHUB_TOKEN,
     repo: process.env.GITHUB_REPO || "arun952137-afk/viralforge-ai",
   },
 
@@ -70,8 +71,7 @@ export const config = {
   logLevel: process.env.LOG_LEVEL || "info",
 };
 
-// ─── BRAND IDENTITY ─────────────────────────────────────────────────────────
-// The permanent DNA of Creova Studio that ALL agents use.
+// ─── BRAND IDENTITY ─────────────────────────────────────────────────────────────
 export const BRAND = {
   name: "Creova Studio",
   tagline: "The AI-native creator operating system",
@@ -104,8 +104,7 @@ export const BRAND = {
   },
 };
 
-// ─── CONTENT CALENDAR ───────────────────────────────────────────────────────
-// The weekly rotation that prevents repetition and keeps account healthy.
+// ─── CONTENT CALENDAR ───────────────────────────────────────────────────────────
 export const CONTENT_CALENDAR = {
   0: { type: "founder_vibe", desc: "Sunday: Founder/startup vibe. Reflect, share journey, build in public." },
   1: { type: "ai_insight", desc: "Monday: AI/startup insight. Sharp take on industry trend." },
@@ -116,17 +115,16 @@ export const CONTENT_CALENDAR = {
   6: { type: "carousel", desc: "Saturday: Carousel or visual-first post. High saves day." },
 };
 
-// ─── POSTING SCHEDULE ───────────────────────────────────────────────────────
-// Best engagement windows (IST)
+// ─── POSTING SCHEDULE ───────────────────────────────────────────────────────────
 export const POSTING_SCHEDULE = {
   twitter: [
-    { hour: 8, minute: 30 },   // Morning scroll
-    { hour: 13, minute: 0 },   // Lunch
-    { hour: 20, minute: 0 },   // Evening
+    { hour: 8, minute: 30 },
+    { hour: 13, minute: 0 },
+    { hour: 20, minute: 0 },
   ],
   instagram: [
-    { hour: 9, minute: 0 },    // Morning
-    { hour: 15, minute: 30 },  // Afternoon peak
-    { hour: 21, minute: 0 },   // Night (highest saves)
+    { hour: 9, minute: 0 },
+    { hour: 15, minute: 30 },
+    { hour: 21, minute: 0 },
   ],
 };
