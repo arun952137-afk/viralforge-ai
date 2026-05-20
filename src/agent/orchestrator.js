@@ -1,7 +1,7 @@
 // src/agent/orchestrator.js
-// ═══════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════
 // THE BRAIN — CREOVA GROWTH AGENT ORCHESTRATOR
-// ═══════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════
 //
 // This is the central nervous system. It coordinates all 7 agents:
 //   1. Trend Hunter    → finds what's happening on the internet
@@ -13,7 +13,7 @@
 //   7. Analytics       → tracks engagement, feeds learnings back
 //
 // Runs on a cron schedule. Fully autonomous.
-// ═══════════════════════════════════════════════════════════════════
+// ═════════════════════════════════════════════════════════════════
 
 import cron from "node-cron";
 import { v4 as uuidv4 } from "uuid";
@@ -26,26 +26,26 @@ import { runCopywriter, generateThread } from "../agents/copywriter.js";
 import { runDesigner, downloadImageBuffer, uploadToStorage } from "../agents/designer.js";
 import { runQualityReview } from "../agents/quality-reviewer.js";
 import { publishToTwitter, publishToInstagram, trackTwitterEngagement, trackInstagramEngagement } from "../agents/publisher.js";
-import { detectNewFeatures, getUnAnnouncedFeatures, generateFeatureLaunchPost } from "../agents/github-detector.js";
+import { detectNewFeatures, generateFeatureLaunchPost } from "../agents/github-detector.js";
 import { runLearningCycle } from "../agents/analytics-learner.js";
 import { runEngagementFarmer } from "../agents/engagement-farmer.js";
 import { runCompetitorIntel } from "../agents/competitor-intel.js";
-import { enqueueAnalyticsJob } from "../jobs/queue.js";
 import { notifyAgentStarted, notifyTelegram, notifyQCRejected, notifyPostFailed } from "../services/notifications.js";
+import { getRecentPosts, getActiveTrends, getAgentState, setAgentState, getUnAnnouncedFeatures } from "../db/index.js";
 
 const log = createLogger("ORCHESTRATOR");
 
-// ─── DAILY CONTENT PIPELINE ──────────────────────────────────────────────────
+// ─── DAILY CONTENT PIPELINE ───────────────────────────────────────────────────────────────
 
 async function runDailyPipeline(platform) {
   const runId = uuidv4().slice(0, 8);
-  log.info(`\n${"═".repeat(60)}`);
+  log.info(`\n${"=".repeat(60)}`);
   log.info(`[${runId}] 🤖 CREOVA GROWTH AGENT — Daily Pipeline`);
   log.info(`[${runId}] Platform: ${platform.toUpperCase()} | ${new Date().toLocaleString("en-IN", { timeZone: config.agent.timezone })}`);
-  log.info(`${"═".repeat(60)}\n`);
+  log.info(`${"=".repeat(60)}\n`);
 
   try {
-    // ── STEP 0: Check for GitHub feature announcements first ────────
+    // ── STEP 0: Check for GitHub feature announcements first ────────────
     log.info(`[${runId}] STEP 0: Checking for new features to announce...`);
     const unannounced = await getUnAnnouncedFeatures();
     if (unannounced.length > 0) {
@@ -61,18 +61,16 @@ async function runDailyPipeline(platform) {
           contentType: "feature_showcase",
           topic: feature.title,
           imagePrompt: launchPost.imagePrompt,
-          isFeaturedLaunch: true,
         });
-        return; // Feature launches take the day's slot
+        return;
       }
     }
 
-    // ── STEP 1: Trend Intelligence ───────────────────────────────────
+    // ── STEP 1: Trend Intelligence ───────────────────────────────────────
     log.info(`[${runId}] STEP 1: Trend Hunter scanning...`);
     const recentPosts = await getRecentPosts(20);
     const recentTopics = recentPosts.map(p => ({ topic: p.topic || "" }));
 
-    // Check for cached trends first
     let trends = await getActiveTrends();
     if (trends.length < 3) {
       trends = await runTrendHunter(recentTopics);
@@ -84,30 +82,27 @@ async function runDailyPipeline(platform) {
       log.warn(`[${runId}] No trends available — using brand defaults`);
       trends = [{ topic: "AI is transforming how creators work", relevanceScore: 75, contentAngle: `${BRAND.name} leads this transformation`, velocity: "rising" }];
     }
-
-    // ── STEP 2: Strategy Decision ────────────────────────────────────
+    // ── STEP 2: Strategy Decision ─────────────────────────────────────
     log.info(`[${runId}] STEP 2: Strategist deciding...`);
     const strategy = await runStrategist(trends, platform);
 
-    // ── STEP 3: Copy Generation ──────────────────────────────────────
+    // ── STEP 3: Copy Generation ─────────────────────────────────────────
     log.info(`[${runId}] STEP 3: Copywriter generating...`);
     const content = await runCopywriter(strategy, platform);
 
-    // Generate thread for Twitter if high engagement potential
     let threads = null;
     if (platform === "twitter" && strategy.estimatedEngagement === "high") {
       threads = await generateThread(strategy);
     }
 
-    // ── STEP 4: Visual Generation ────────────────────────────────────
+    // ── STEP 4: Visual Generation ───────────────────────────────────────
     log.info(`[${runId}] STEP 4: Designer creating visual...`);
     const visual = await runDesigner(strategy, content);
 
-    // ── STEP 5: Quality Gate ─────────────────────────────────────────
+    // ── STEP 5: Quality Gate ───────────────────────────────────────────
     log.info(`[${runId}] STEP 5: Quality Reviewer checking...`);
     const draft = {
-      id: uuidv4(),
-      platform,
+      id: uuidv4(), platform,
       hook: content.chosen.hook,
       caption: content.chosen.caption,
       hashtags: content.chosen.hashtags,
@@ -127,7 +122,7 @@ async function runDailyPipeline(platform) {
       return;
     }
 
-    // ── STEP 6: Publish ──────────────────────────────────────────────
+    // ── STEP 6: Publish ────────────────────────────────────────────────────
     await runPostingFlow({ runId, platform, ...review.finalDraft, qualityScore: review.overallScore });
 
   } catch (e) {
@@ -137,15 +132,13 @@ async function runDailyPipeline(platform) {
   }
 }
 
-async function runPostingFlow({ runId, platform, hook, caption, hashtags, contentType, topic, imageUrl, imagePrompt, threads, qualityScore, isFeaturedLaunch }) {
+async function runPostingFlow({ runId, platform, hook, caption, hashtags, contentType, topic, imageUrl, imagePrompt, threads, qualityScore }) {
   log.info(`[${runId}] STEP 6: Publishing to ${platform.toUpperCase()}...`);
 
-  // Download image buffer for upload
   let imageBuffer = null;
   let finalImageUrl = imageUrl;
   if (imageUrl) {
     imageBuffer = await downloadImageBuffer(imageUrl);
-    // Upload to R2 for permanent URL
     if (imageBuffer) {
       const filename = `${contentType}-${Date.now()}.png`;
       const r2Url = await uploadToStorage(imageBuffer, filename);
@@ -156,52 +149,22 @@ async function runPostingFlow({ runId, platform, hook, caption, hashtags, conten
   const postData = { hook, caption, hashtags, contentType, topic, imageUrl: finalImageUrl, imageBuffer, imagePrompt, threads, qualityScore: qualityScore || 80, scheduledAt: new Date().toISOString() };
 
   let result;
-  if (platform === "twitter") {
-    result = await publishToTwitter(postData);
-  } else if (platform === "instagram") {
-    result = await publishToInstagram(postData);
-  }
+  if (platform === "twitter") result = await publishToTwitter(postData);
+  else if (platform === "instagram") result = await publishToInstagram(postData);
 
   if (result?.success) {
-    log.info(`[${runId}] ✅ PUBLISHED SUCCESSFULLY — ${platform} ${result.postId}`);
+    log.info(`[${runId}] ✅ PUBLISHED — ${platform} ${result.postId}`);
     if (result.url) log.info(`[${runId}] URL: ${result.url}`);
-
-    // Update agent state
     const state = await getAgentState();
     await setAgentState({
       totalPostsPublished: (state.totalPostsPublished || 0) + 1,
-      lastPost: {
-        platform, topic: topic?.slice(0, 60), hook: hook?.slice(0, 60),
-        postId: result.postId, publishedAt: new Date().toISOString(),
-        score: qualityScore,
-      },
+      lastPost: { platform, topic: topic?.slice(0, 60), hook: hook?.slice(0, 60), postId: result.postId, publishedAt: new Date().toISOString(), score: qualityScore },
     });
-
-    // Schedule analytics check in 24 hours
-    scheduleAnalyticsCheck(result.postId, platform, result.postId);
   } else {
     log.error(`[${runId}] ❌ Publish failed: ${result?.error}`);
   }
 }
-
-// ─── ANALYTICS SCHEDULER ─────────────────────────────────────────────────────
-
-const pendingAnalytics = new Map();
-
-function scheduleAnalyticsCheck(dbPostId, platform, platformPostId) {
-  // Check analytics 24 hours after posting
-  const delay = 24 * 60 * 60 * 1000;
-  setTimeout(async () => {
-    log.info(`Checking analytics for ${platform} post ${platformPostId}`);
-    if (platform === "twitter") {
-      await trackTwitterEngagement(dbPostId, platformPostId);
-    } else if (platform === "instagram") {
-      await trackInstagramEngagement(dbPostId, platformPostId);
-    }
-  }, delay);
-}
-
-// ─── CRON SCHEDULE ───────────────────────────────────────────────────────────
+// ─── CRON SCHEDULE ───────────────────────────────────────────────────────────────────
 
 export async function startOrchestrator() {
   log.info("\n" + "█".repeat(50));
@@ -240,7 +203,7 @@ export async function startOrchestrator() {
     await runTrendHunter(recent.map(p => ({ topic: p.topic || "" })));
   }, { timezone: config.agent.timezone });
 
-  // Engagement farming — twice per day (drive inbound)
+  // Engagement farming — twice per day
   cron.schedule("0 10,17 * * *", async () => {
     log.info("🌾 Engagement farming run...");
     await runEngagementFarmer();
@@ -248,8 +211,7 @@ export async function startOrchestrator() {
 
   // Weekly learning cycle — every Monday 6 AM
   cron.schedule("0 6 * * 1", async () => {
-    log.info("🧠 Weekly learning cycle...");
-    await runLearningCycle();
+fix: correct db imports in orchestrator (getUnAnnouncedFeatures from db, not github-detector)    await runLearningCycle();
   }, { timezone: config.agent.timezone });
 
   // Competitor intelligence — every Sunday 7 AM
@@ -261,19 +223,9 @@ export async function startOrchestrator() {
   log.info("✅ All cron jobs scheduled");
   log.info(`📅 Twitter slots: ${POSTING_SCHEDULE.twitter.map(s => `${s.hour}:${String(s.minute).padStart(2,"0")}`).join(", ")} IST`);
   log.info(`📷 Instagram slots: ${POSTING_SCHEDULE.instagram.map(s => `${s.hour}:${String(s.minute).padStart(2,"0")}`).join(", ")} IST`);
-
-  // Run immediately on startup for testing
-  if (config.env === "development") {
-    log.info("\n🔧 DEV MODE — running test pipeline in 3s...");
-    setTimeout(async () => {
-      await runDailyPipeline("twitter");
-    }, 3000);
-  }
 }
 
-// ─── MANUAL TRIGGER ─────────────────────────────────────────────────────────
-// Call this to run a pipeline immediately without waiting for cron
-
+// ─── MANUAL TRIGGER ───────────────────────────────────────────────────────────────────
 export async function triggerNow(platform = "twitter") {
   log.info(`⚡ Manual trigger: ${platform}`);
   await runDailyPipeline(platform);
