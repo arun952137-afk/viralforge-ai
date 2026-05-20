@@ -8,14 +8,23 @@ import { createLogger } from "../lib/logger.js";
 
 const log = createLogger("DB");
 
-// Lazy Supabase client — only instantiate when credentials are present at runtime
+// Lazy Supabase client — validates URL format before connecting
 let _sb = null;
 function getSB() {
   if (_sb) return _sb;
-  if (!config.supabase.url || !config.supabase.serviceKey) {
+  const url = config.supabase.url;
+  const key = config.supabase.serviceKey;
+  if (!url || !key) {
     throw new Error("SUPABASE_URL and SUPABASE_SERVICE_KEY are required. Add them to GitHub Secrets.");
   }
-  _sb = createClient(config.supabase.url, config.supabase.serviceKey);
+  if (!url.startsWith("https://") || !url.includes(".supabase.co")) {
+    throw new Error(
+      `SUPABASE_URL must be your project URL (e.g. https://abc123.supabase.co), not an API key.\n` +
+      `Current value starts with: "${url.slice(0, 20)}..."\n` +
+      `Fix: Supabase Dashboard → Settings → API → copy Project URL`
+    );
+  }
+  _sb = createClient(url, key);
   return _sb;
 }
 export const supabase = new Proxy({}, {
