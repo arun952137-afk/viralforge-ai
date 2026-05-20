@@ -210,7 +210,7 @@ export async function startOrchestrator() {
   }, { timezone: config.agent.timezone });
 
   // Weekly learning cycle — every Monday 6 AM
-fix: remove accidental commit message injection from line 214await runLearningCycle();
+    cron.schedule("0 6 * * 1", async () => {
   }, { timezone: config.agent.timezone });
 
   // Competitor intelligence — every Sunday 7 AM
